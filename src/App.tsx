@@ -158,7 +158,7 @@ const PROJECTS: Project[] = [
     projectProperty: 'B2B SaaS, B2C, O2O',
     retrospective: (
       <>
-        <ul className="list-disc pl-5 space-y-3 marker:text-white/40">
+        <ul className="list-disc pl-5 space-y-8 marker:text-white/40">
           <li>기업과 클라이언트의 니즈가 명확하고 확고했던 만큼, 프로젝트에서 구현 가능한 방향성과 다양성에는 상당한 제약이 따랐던 부분이 아쉽습니다.</li>
           <li>
             '추모'는 탄탄한 거래처를 확보하고 있었으나, 사업 초기 단계의 스타트업으로서 서비스의 실질적인 사용자 데이터가 매우 부족한 상태였습니다. 또한 <TermTooltip term="장례 산업만이 가진 특수성" description={funeralIndustryDescription} />으로 인해 기초적인 데이터 외에 정보를 얻기 힘든 구조의 프로젝트였습니다.
