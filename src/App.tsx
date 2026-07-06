@@ -1060,7 +1060,7 @@ function Home() {
             className="flex flex-col items-center"
           >
             <div className="text-xs uppercase tracking-[0.3em] text-white/60 mb-6 italic">
-              CHO HAN VIT : UX/UI
+              CHO HAN VIT
             </div>
             <h1 className="font-serif text-6xl md:text-8xl lg:text-[140px] font-normal leading-[0.9] tracking-tight mb-6 italic">
               DESIGN ARCHIVE
