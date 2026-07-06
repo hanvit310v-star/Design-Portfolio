@@ -153,7 +153,7 @@ const PROJECTS: Project[] = [
     thumbnailPosition: 'object-left',
     unicornProjectId: 'PDAAZKOm9edkvDtWeNJI',
     detailSubtitle: 'DIGITAL SIGNAGE & ADMIN PAGE DESIGN',
-    contribution: 'UX 리서치 및 전략 수립 & UI 디자인 진행(UX/UI 100%)',
+    contribution: 'UX 리서치 및 전략 수립 & UI 디자인 진행 (UX/UI 100%)',
     duration: '2025.08 ~ 2025.10 (2개월)',
     projectProperty: 'B2B SaaS, B2C, O2O',
     retrospective: (
@@ -211,7 +211,7 @@ const PROJECTS: Project[] = [
       { id: 'last', title: 'Last', image: '29CM/14-last.webp' },
     ],
     detailSubtitle: 'WEB Design',
-    contribution: 'UX 리서치 및 전략 수립 & UI 레이아웃 설계 참여(UX/UI 100%)',
+    contribution: 'UX 리서치 및 전략 수립 & UI 레이아웃 설계 참여 (UX/UI 100%)',
     duration: '2025.07 ~ 2025.08 (1.3개월)',
     projectProperty: '반응형 웹',
     retrospective: (
@@ -230,7 +230,7 @@ const PROJECTS: Project[] = [
     thumbnail: 'CGV/CGV tumbnail.webp',
     unicornProjectId: 'PrXQWc4SSC0jy8v6x98a',
     detailSubtitle: 'APP DESIGN',
-    contribution: 'UX 리서치 및 전략 수립 & UI 디자인 진행(UX/UI 100%)',
+    contribution: 'UX 리서치 및 전략 수립 & UI 디자인 진행 (UX/UI 100%)',
     duration: '2025.05 ~ 2025.06 (1개월)',
     projectProperty: '앱 디자인',
     retrospective: (
