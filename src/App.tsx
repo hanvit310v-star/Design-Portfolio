@@ -211,7 +211,7 @@ const PROJECTS: Project[] = [
     projectProperty: '반응형 웹',
     retrospective: (
       <>
-        <ul className="list-disc pl-5 space-y-12 marker:text-white/40">
+        <ul className="list-disc pl-5 space-y-6 marker:text-white/40">
           <li>
             반응형 웹 구동 원리와 다양한 디바이스 환경을 고려한 컴포넌트 설계 및 배치, 신규 사용자의 이탈 방지를 목표로 한 초기 온보딩 경험 최적화를 통해 기획력을 기르는 측면에서 많은 도움이 되는 프로젝트였습니다.
           </li>
