@@ -147,7 +147,9 @@ export default React.memo(function UnicornBackground({
   return (
     <div className={className}>
       <div className={`w-full h-full transition-opacity duration-1000 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
-        <div ref={containerRef} style={{ width, height }} data-us-project={projectId}></div>
+        {/* 성능 최적화: 렌더 해상도 dpi 1.0(기본 1.5 대비 픽셀 ~55%↓), 프레임 30fps(초당 GPU 작업 절반).
+            앰비언트 배경이라 화질 체감 차이는 거의 없음. */}
+        <div ref={containerRef} style={{ width, height }} data-us-project={projectId} data-us-dpi="1" data-us-fps="30"></div>
       </div>
     </div>
   );
