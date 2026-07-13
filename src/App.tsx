@@ -950,7 +950,9 @@ const BadgeSection = React.memo(() => {
         </div>
       </div>
       {/* 우측 사원증 */}
-      <div className="w-full h-[55vh] lg:h-screen lg:w-[54%] xl:w-[56%] lg:absolute lg:right-0 lg:top-1/2 lg:-translate-y-[58%] order-2 pointer-events-none lg:pointer-events-auto">
+      {/* 사원증 크기 고정: iframe 높이를 뷰포트 비례(100vh) 대신 고정 px로 두어
+          해상도(모니터 높이)와 무관하게 카드가 항상 같은 크기로 보이게 함(본문 텍스트처럼 고정). */}
+      <div className="w-full h-[55vh] lg:h-[900px] lg:w-[54%] xl:w-[56%] lg:absolute lg:right-0 lg:top-1/2 lg:-translate-y-1/2 order-2 pointer-events-none lg:pointer-events-auto">
         <iframe
           ref={iframeRef}
           src="badge.html?embed=1&v=12"
