@@ -161,9 +161,9 @@ const PROJECTS: Project[] = [
         <ul className="list-disc pl-5 space-y-12 marker:text-white/40">
           <li>
             '추모'는 탄탄한 거래처를 확보하고 있었으나, 사업 초기 단계의 스타트업으로서 서비스의 실질적인 사용자 데이터가 매우 부족한 상태였습니다. 또한 <TermTooltip term="장례 산업만이 가진 특수성" description={funeralIndustryDescription} />으로 인해 기초적인 데이터 외에 정보를 얻기 힘든 구조의 프로젝트였습니다.
-            <br /><br />
+            <span className="block h-2" aria-hidden="true" />
             그렇기에 오프라인에서 직접 인사이트를 도출해야 했고, 유가족의 애도 과정을 존중하며 정서적 개입을 최소화해야 하는 환경적 제약 속에서 <TermTooltip term="에스노그래피(Ethnography)" description="사용자의 실제 생활 환경에 들어가 그들의 행동을 있는 그대로 관찰합니다. 어떤 지점에서 머뭇거리는지, 어떤 비효율적인 도구를 사용하는지 기록합니다." />, <TermTooltip term="쉐도잉(Shadowing)" description="특정 사용자를 그림자처럼 따라다니며 일거수일투족을 기록합니다. 사용자가 &quot;불편함이 없다&quot;고 말해도, 실제 행동에서 나타나는 마찰(Friction)을 포착할 수 있습니다." />, <TermTooltip term="맥락적 인터뷰(Contextual Inquiry)" description="사용자가 실제 업무나 활동을 하고 있는 '맥락' 안에서 질문을 던집니다. 기억에 의존하는 일반 인터뷰보다 훨씬 정확한 실무 데이터를 얻을 수 있습니다." />와 같은 정성 조사와 더불어 <TermTooltip term="동선 및 체류 시간 측정(Tracking & Dwell Time)" description="특정 공간에서 사용자가 이동하는 경로를 도식화하고, 각 단계별로 머무는 시간을 초 단위로 스톱워치 등을 이용해 기록합니다." />, <TermTooltip term="작업 성공률 및 오류율(Task Success/Error Rate)" description="오프라인 환경에서 특정 과업을 수행하게 하고, 이를 한 번에 성공했는지, 몇 번의 시행착오를 거쳤는지 카운팅합니다." /> 과 같은 정량 조사의 비개입 리서치 방법론을 활용했습니다.
-            <br /><br />
+            <span className="block h-2" aria-hidden="true" />
             유가족의 슬픔이라는 무거운 정서가 지배하는 공간에서 리서치를 진행하는 것은 윤리적 감수성과 세밀한 리서치 설계 능력을 요구했고, 동시에 유의미한 사용자 데이터를 수집해야하는 상황적 특수성이 흥미로운 프로젝트였습니다.
           </li>
           <li>기업과 클라이언트의 니즈가 명확하고 확고했던 만큼, 프로젝트에서 구현 가능한 방향성과 다양성에는 상당한 제약이 따랐던 부분이 아쉬웠습니다.</li>
@@ -621,7 +621,7 @@ const ProjectDetail: React.FC = () => {
           )}
           {project.unicornProjectId ? (
             <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none opacity-60 z-10">
-              <div className={`w-full h-full lg:h-auto lg:aspect-[1440/900] flex items-center justify-center ${project.id === 3 ? 'lg:scale-110' : ''}`}>
+              <div className={`w-full h-full flex items-center justify-center ${project.id === 3 ? 'lg:scale-110' : ''}`}>
                 <UnicornBackground 
                   projectId={project.unicornProjectId}
                   className="w-full h-full"
@@ -685,7 +685,7 @@ const ProjectDetail: React.FC = () => {
             {project.retrospective && (
               <div className="flex flex-col gap-3">
                 <span className="text-[11px] text-white/40 uppercase tracking-widest font-semibold">회고</span>
-                <div className="text-sm text-white/80 leading-[1.8] font-sans whitespace-pre-line">{project.retrospective}</div>
+                <div className="text-sm text-white/80 leading-[1.6] font-sans whitespace-pre-line">{project.retrospective}</div>
               </div>
             )}
           </div>
