@@ -243,6 +243,7 @@ const PROJECTS: Project[] = [
       { id: 'research', title: 'Research', image: 'CGV/2.Research.webp' },
       { id: 'strategy', title: 'Strategy', image: 'CGV/3.Strategy.webp' },
       { id: 'user-flow', title: 'User Flow', image: 'CGV/4.User Flow.webp' },
+      { id: 'ui-specification', title: 'UI Specification', image: 'CGV/4-1.UI Specification.webp' },
       { id: 'home', title: 'Home', parentTitle: 'UI Design', image: 'CGV/5-1.Home.webp' },
       { id: 'community', title: 'Community', parentTitle: 'UI Design', image: 'CGV/5-2.Community.webp' },
       { id: 'last', title: 'Last', image: 'CGV/6.Last.webp', hideFromToc: true }
