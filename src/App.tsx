@@ -670,21 +670,21 @@ const ProjectDetail: React.FC = () => {
           <div className="w-full max-w-[1200px] flex flex-col gap-8 md:gap-12">
             <div className="flex flex-col md:flex-row flex-wrap gap-6 md:gap-16 lg:gap-24">
               <div className="flex flex-col gap-3 min-w-[120px]">
-                <span className="text-[11px] text-white/40 uppercase tracking-widest font-semibold">기여도</span>
+                <span className="text-[11px] text-white/40 uppercase tracking-widest font-semibold" style={{ fontFamily: "'Pretendard', sans-serif" }}>기여도</span>
                 <p className="text-sm text-white/80 leading-relaxed font-sans">{project.contribution}</p>
               </div>
               <div className="flex flex-col gap-3 min-w-[120px]">
-                <span className="text-[11px] text-white/40 uppercase tracking-widest font-semibold">작업 기간</span>
+                <span className="text-[11px] text-white/40 uppercase tracking-widest font-semibold" style={{ fontFamily: "'Pretendard', sans-serif" }}>작업 기간</span>
                 <p className="text-sm text-white/80 leading-relaxed font-sans">{project.duration}</p>
               </div>
               <div className="flex flex-col gap-3 min-w-[120px]">
-                <span className="text-[11px] text-white/40 uppercase tracking-widest font-semibold">프로젝트 속성</span>
+                <span className="text-[11px] text-white/40 uppercase tracking-widest font-semibold" style={{ fontFamily: "'Pretendard', sans-serif" }}>프로젝트 속성</span>
                 <p className="text-sm text-white/80 leading-relaxed font-sans">{project.projectProperty}</p>
               </div>
             </div>
             {project.retrospective && (
               <div className="flex flex-col gap-3">
-                <span className="text-[11px] text-white/40 uppercase tracking-widest font-semibold">회고</span>
+                <span className="text-[11px] text-white/40 uppercase tracking-widest font-semibold" style={{ fontFamily: "'Pretendard', sans-serif" }}>회고</span>
                 <div className="text-sm text-white/80 leading-[1.8] font-sans whitespace-pre-line">{project.retrospective}</div>
               </div>
             )}
