@@ -668,7 +668,7 @@ const ProjectDetail: React.FC = () => {
           transition={{ delay: project.id === 2 ? 2.5 : 0.5, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="flex justify-start max-w-[1600px] w-full mx-auto"
         >
-          <div className="w-full max-w-[1200px] flex flex-col gap-8 md:gap-12">
+          <div className="w-full max-w-[1200px] flex flex-col gap-10 md:gap-16">
             <div className="flex flex-col md:flex-row flex-wrap gap-6 md:gap-16 lg:gap-24">
               <div className="flex flex-col gap-3 min-w-[120px]">
                 <span className="text-[13px] text-white/40 uppercase tracking-widest font-medium" style={{ fontFamily: "'Pretendard', sans-serif" }}>기여도</span>
