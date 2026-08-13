@@ -180,7 +180,7 @@ const PROJECTS: Project[] = [
       { id: 'status-solution-1', title: 'Solution 1', parentTitle: 'Status Board', image: 'Choomo/2-2.Solution-1.webp', hideFromToc: true },
       { id: 'admin-issue', title: 'Issue', parentTitle: 'Management Page (Admin)', image: 'Choomo/3-1.Issue.webp' },
       { id: 'admin-solution', title: 'Solution', parentTitle: 'Management Page (Admin)', image: 'Choomo/3-2.Solution.webp' },
-      { id: 'admin-ia', title: 'Information Architecture (IA)', parentTitle: 'Management Page (Admin)', image: 'Choomo/3-3.Information Architecture.webp' },
+      { id: 'admin-ia', title: 'Information Architecture', parentTitle: 'Management Page (Admin)', image: 'Choomo/3-3.Information Architecture.webp' },
       { id: 'result', title: 'Result', image: 'Choomo/4.Result.webp' }
     ]
   },
