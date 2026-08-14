@@ -178,9 +178,9 @@ const PROJECTS: Project[] = [
       { id: 'status-issue-3', title: 'Issue 3', parentTitle: 'Status Board', image: 'Choomo/issue-3.webp', hideFromToc: true },
       { id: 'status-solution', title: 'Solution', parentTitle: 'Status Board', image: 'Choomo/2-2.Solution.webp' },
       { id: 'status-solution-1', title: 'Solution 1', parentTitle: 'Status Board', image: 'Choomo/2-2.Solution-1.webp', hideFromToc: true },
-      { id: 'admin-issue', title: 'Issue', parentTitle: 'Management Page (Admin)', image: 'Choomo/3-1.Issue.webp' },
-      { id: 'admin-solution', title: 'Solution', parentTitle: 'Management Page (Admin)', image: 'Choomo/3-2.Solution.webp' },
-      { id: 'admin-ia', title: 'Information Architecture', parentTitle: 'Management Page (Admin)', image: 'Choomo/3-3.Information Architecture.webp', hideFromToc: true },
+      { id: 'admin-issue', title: 'Issue', parentTitle: 'Management Page', image: 'Choomo/3-1.Issue.webp' },
+      { id: 'admin-solution', title: 'Solution', parentTitle: 'Management Page', image: 'Choomo/3-2.Solution.webp' },
+      { id: 'admin-ia', title: 'Information Architecture', parentTitle: 'Management Page', image: 'Choomo/3-3.Information Architecture.webp', hideFromToc: true },
       { id: 'result', title: 'Result', image: 'Choomo/4.Result.webp' }
     ]
   },
