@@ -128,6 +128,35 @@ const funeralIndustryDescription = (
   </div>
 );
 
+// 목차(TOC) 영문 라벨의 한글 번역. 마우스를 올렸을 때만 옆에 살짝 노출되며,
+// 평소엔 자리를 차지하지 않는다(순수 CSS hover, 레이아웃 영향 없음).
+const TOC_KO: Record<string, string> = {
+  'Project Overview': '프로젝트 개요',
+  'About': '소개',
+  'Background': '배경',
+  'Research': '리서치',
+  'Strategy': '전략',
+  'User Flow': '유저 플로우',
+  'UI Specification': '화면 설계서',
+  'Responsive Web Design': '반응형 웹',
+  'Outcomes': '성과',
+  'Result': '결과',
+  'Issue': '이슈',
+  'Solution': '솔루션',
+  'Home': '홈',
+  'Category': '카테고리',
+  'Search Bar': '검색바',
+  'Product Listing Page': '상품 목록',
+  'Filter': '필터',
+  'Product Detail Page': '상품 상세',
+  'Purchase Section': '구매',
+  'Review': '리뷰',
+  'Community': '커뮤니티',
+  'Status Board': '현황판',
+  'Management Page': '관리 페이지',
+  'UI Design': 'UI 디자인',
+};
+
 interface Project {
   id: number;
   title: string;
@@ -733,11 +762,18 @@ const ProjectDetail: React.FC = () => {
                       {isFirstOfParent && (
                         <button
                           onClick={() => handleTocClick(section.id)}
-                          className={`text-left text-sm mt-4 mb-1 tracking-wide transition-colors pl-6 ${
+                          className={`group text-left text-sm mt-4 mb-1 tracking-wide transition-colors pl-6 ${
                             isParentActive ? 'text-white font-medium' : 'text-white/40 hover:text-white'
                           }`}
                         >
-                          {section.parentTitle}
+                          <span className="relative inline-block">
+                            {section.parentTitle}
+                            {TOC_KO[section.parentTitle] && (
+                              <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap text-[11px] font-normal normal-case tracking-normal text-white/35 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                {TOC_KO[section.parentTitle]}
+                              </span>
+                            )}
+                          </span>
                         </button>
                       )}
                     <button
@@ -755,8 +791,13 @@ const ProjectDetail: React.FC = () => {
                           isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
                         }`} 
                       />
-                      <span className="transition-colors duration-500">
+                      <span className="relative inline-block transition-colors duration-500">
                         {section.title}
+                        {TOC_KO[section.title] && (
+                          <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap text-[11px] text-white/35 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            {TOC_KO[section.title]}
+                          </span>
+                        )}
                       </span>
                     </button>
                   </React.Fragment>
