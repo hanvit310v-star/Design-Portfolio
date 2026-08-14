@@ -769,7 +769,7 @@ const ProjectDetail: React.FC = () => {
                           <span className="relative inline-block">
                             {section.parentTitle}
                             {TOC_KO[section.parentTitle] && (
-                              <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 whitespace-nowrap text-[11px] font-medium normal-case tracking-normal text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ fontFamily: "'Pretendard', sans-serif" }}>
+                              <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 whitespace-nowrap text-[11px] font-normal normal-case tracking-[0.02em] text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ fontFamily: "'Pretendard', sans-serif" }}>
                                 {TOC_KO[section.parentTitle]}
                               </span>
                             )}
@@ -794,7 +794,7 @@ const ProjectDetail: React.FC = () => {
                       <span className="relative inline-block transition-colors duration-500">
                         {section.title}
                         {TOC_KO[section.title] && (
-                          <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 whitespace-nowrap text-[11px] font-medium text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ fontFamily: "'Pretendard', sans-serif" }}>
+                          <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 whitespace-nowrap text-[11px] font-normal tracking-[0.02em] text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ fontFamily: "'Pretendard', sans-serif" }}>
                             {TOC_KO[section.title]}
                           </span>
                         )}
