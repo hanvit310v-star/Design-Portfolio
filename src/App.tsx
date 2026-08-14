@@ -149,11 +149,11 @@ const TOC_KO: Record<string, string> = {
   'Product Listing Page': '상품 목록',
   'Filter': '필터',
   'Product Detail Page': '상품 상세',
-  'Purchase Section': '구매',
+  'Purchase Section': '구매 영역',
   'Review': '리뷰',
   'Community': '커뮤니티',
   'Status Board': '현황판',
-  'Management Page': '관리 페이지',
+  'Management Page': '어드민 페이지',
   'UI Design': 'UI 디자인',
 };
 
@@ -769,7 +769,7 @@ const ProjectDetail: React.FC = () => {
                           <span className="relative inline-block">
                             {section.parentTitle}
                             {TOC_KO[section.parentTitle] && (
-                              <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap text-[11px] font-normal normal-case tracking-normal text-white/35 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-4 whitespace-nowrap text-[11px] font-normal normal-case tracking-normal text-white/35 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                 {TOC_KO[section.parentTitle]}
                               </span>
                             )}
@@ -794,7 +794,7 @@ const ProjectDetail: React.FC = () => {
                       <span className="relative inline-block transition-colors duration-500">
                         {section.title}
                         {TOC_KO[section.title] && (
-                          <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap text-[11px] text-white/35 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-4 whitespace-nowrap text-[11px] text-white/35 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                             {TOC_KO[section.title]}
                           </span>
                         )}
