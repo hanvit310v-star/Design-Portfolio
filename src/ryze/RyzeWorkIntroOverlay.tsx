@@ -14,6 +14,17 @@ if (typeof document !== 'undefined' && 'fonts' in document) {
   document.fonts.load("700 100px Orbitron").catch(() => {});
 }
 
+// 인트로가 쓰는 이미지(문 질감·THE WORK 배경)와 문 뒤에 드러날 엘리베이터 화면 배경도 같은
+// 이유로 미리 받아 디코딩해둔다 — 배포(네트워크) 환경에서는 이 이미지들이 문이 열리는 순간에야
+// 요청돼, 문 뒤 화면이 늦게 그려지고 상단(Back to Main/음악 UI)이 문 모션 뒤에 갑자기 뜨던 원인이었다.
+if (typeof window !== 'undefined') {
+  ['RYZE/work-door-texture.webp', 'RYZE/work-intro-bg.webp', 'RYZE/work-chapter-bg.webp'].forEach((path) => {
+    const img = new Image();
+    img.src = getImageUrl(path);
+    img.decode?.().catch(() => {});
+  });
+}
+
 // WORK 카드의 "LET'S SEE THE WORK" + 엘리베이터 문 열림 인트로 모션이 이번 사이트 접속(세션)에서
 // 이미 한 번 재생됐는지 — 페이지를 새로고침하거나 사이트를 완전히 새로 접속해 이 모듈이 다시
 // 로드될 때만 false로 초기화되어, 그때는 어떤 경로로 들어오든 인트로가 다시 재생된다.
@@ -61,6 +72,12 @@ const RYZE_WORK_INTRO_DOOR_HOLD_S = 0.25;
 const RYZE_WORK_INTRO_RISE_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 // 문이 좌우로 갈라져 열리는 데 걸리는 시간 — 기존 0.7s에서 조금 느리게 늘렸다.
 const RYZE_WORK_INTRO_DOOR_OPEN_DURATION = 0.95;
+// 목적지 화면으로의 실제 라우트 이동(go)을 나가는 전환(exiting) 시작보다 이만큼 먼저 한다.
+// 오버레이(THE WORK 화면)가 아직 전부 덮고 있는 동안 이전 화면 퇴장(0.4s) → 새 화면 마운트 →
+// 페이드인(0.4s) + Back to Main 슬라이드인(0.6s)이 끝나 있어야, 문이 열릴 때 상단까지 이미
+// 완성된 화면이 드러난다. 이동을 문 상승과 같은 순간에 하면 이 연쇄가 문 열림 시점에야 끝나(느린
+// 환경에선 그 뒤에 끝나) 상단이 문 모션이 끝난 뒤에 갑자기 나타난다.
+const RYZE_WORK_INTRO_GO_LEAD_MS = 1000;
 
 // "듣고 있어" 보이스에 통화 너머로 들리는 듯한 울림을 더하기 위한 컨볼루션 리버브용
 // 임펄스 응답을 코드로 직접 생성한다(별도 IR 음원 파일 없이, 지수적으로 감쇠하는 백색
@@ -471,10 +488,8 @@ export function useRyzeWorkIntro() {
     // 0.4초를 더 늘려 여유를 준다.
     const holdMs = RYZE_WORK_INTRO_HOLD_MS;
     timers.current.push(
-      window.setTimeout(() => {
-        go();
-        setPhase('exiting');
-      }, holdMs)
+      window.setTimeout(go, holdMs - RYZE_WORK_INTRO_GO_LEAD_MS),
+      window.setTimeout(() => setPhase('exiting'), holdMs)
     );
     // exiting 단계 전체(WORK 상승+블러(문도 동시에 같은 속도로 올라와 자리를 채움) + 문
     // 정지(RYZE_WORK_INTRO_DOOR_HOLD_S) + 문 열림(RYZE_WORK_INTRO_DOOR_OPEN_DURATION)) 재생이

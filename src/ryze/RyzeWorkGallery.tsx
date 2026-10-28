@@ -200,11 +200,12 @@ const GalleryVideo: React.FC<{
     const el = ref.current;
     if (!el) return;
     if (withSound) {
-      // 소리 영상 — 보이는 동안 재생(첫 진입은 처음부터), 벗어나면 일시정지. 들어올 때 영상 소리는 페이드인,
+      // 소리 영상 — 보이는 동안 재생(들어올 때마다 처음부터), 벗어나면 일시정지. 들어올 때 영상 소리는 페이드인,
       // 나갈 때는 페이드아웃. 소리 있는 자동 재생은 브라우저가 사용자 조작(클릭 등) 이전엔 막을 수
       // 있어서, 막히면 음소거로 재생만 하고 배경음악은 그대로 둔다.
       let visible = false;
       const enter = () => {
+        el.currentTime = 0; // 화면에 들어올 때마다 처음부터
         el.muted = false;
         if (el.paused) el.volume = 0;
         el.play().then(

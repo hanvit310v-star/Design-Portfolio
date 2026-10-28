@@ -688,7 +688,9 @@ export const RyzeMusicToggleWithLabel: React.FC<{ onDarkBg?: boolean }> = ({ onD
   const [hovered, setHovered] = useState(false);
   const inkColor = onDarkBg ? '#F9FAFB' : '#0A0A0A';
   return (
-    <div className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+    // select-none: 곡명/토글은 일반 텍스트라 클릭하면 브라우저가 그 자리에 선택(캐럿) 위치를 만들어
+    // 깜빡이는 커서가 뜬다 — 선택 자체를 막아 없앤다.
+    <div className="relative select-none" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <AnimatePresence>
         {hovered && (
           <motion.div
