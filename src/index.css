@@ -1,18 +1,142 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Inter:wght@300;400;500;600&family=Jost:wght@200;300;400;500&family=Montserrat:wght@200;300;400;500;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Playfair+Display:wght@600;700;800&family=Inter:wght@300;400;500;600&family=Jost:wght@200;300;400;500&family=Montserrat:wght@200;300;400;500;700;800;900&family=DotGothic16&family=Orbitron:wght@400;500;600;700;800;900&family=Noto+Serif+KR:wght@500;600;700&family=Gamja+Flower&display=swap');
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700&display=swap');
 @import "tailwindcss";
+
+/* Digital-7(상용/비공식 배포) 대신, 동일한 세그먼트 LED 디스플레이 스타일의 자유 라이선스(OFL)
+   대체 서체 DSEG를 사용한다. DSEG7(7세그먼트)은 숫자 전용으로 설계돼 있어 W 같은 알파벳은
+   억지로 근사한 모양(예: W→H처럼 보임)에 글자마다 폭·높이·베이스라인도 들쭉날쭉했다.
+   DSEG14(14세그먼트)는 처음부터 알파벳까지 정확히 표현하도록 만들어진 버전이라, 대신 이걸 쓴다. */
+@font-face {
+  font-family: 'DSEG14-Classic';
+  src: url('https://cdn.jsdelivr.net/npm/dseg@0.46.0/fonts/DSEG14-Classic/DSEG14Classic-Bold.woff2') format('woff2');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* DSEG7(7세그먼트)은 숫자 전용으로 설계돼 W 같은 알파벳이 H처럼 뭉개져 보이지만,
+   참고용으로 함께 등록해둔다. */
+@font-face {
+  font-family: 'DSEG7-Classic';
+  src: url('https://cdn.jsdelivr.net/npm/dseg@0.46.0/fonts/DSEG7-Classic/DSEG7Classic-Bold.woff2') format('woff2');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* LED 표시판 특유의 도트매트릭스 글자 형태를 그대로 담은 폰트(dafont.com "LED Dot-Matrix",
+   개인용 무료 라이선스). 자체 굵기 변형은 없어 CSS font-weight:bold로 두껍게 렌더링한다. */
+@font-face {
+  font-family: 'LED Dot-Matrix';
+  src: url('/fonts/LEDDotMatrix.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Ivy Presto Text — 구입한 데스크톱 폰트를 자가 호스팅(self-host)해 웹폰트로 임베드.
+   비공개 포트폴리오 사이트용으로만 쓴다는 전제로, 폰트가 없는 방문자에게도 동일하게 보이도록
+   OTF 파일을 직접 서빙한다. italic 전용 글립은 없어 필요 시 브라우저가 합성(oblique)한다. */
+@font-face {
+  font-family: 'Ivy Presto Text';
+  src: url('/fonts/ivypresto/Ivy-Presto-Text-Thin.otf') format('opentype');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Ivy Presto Text';
+  src: url('/fonts/ivypresto/Ivy-Presto-Text-Light.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Ivy Presto Text';
+  src: url('/fonts/ivypresto/Ivy-Presto-Text-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Ivy Presto Text';
+  src: url('/fonts/ivypresto/Ivy-Presto-Text-Semi-Bold.otf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Cormorant Garamond", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-display: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  --font-ivypresto: "Ivy Presto Text", "Cormorant Garamond", ui-serif, Georgia, serif;
+}
+
+/* html에도 body와 같은 배경색을 준다 — 화면(라우트)이 전환될 때 AnimatePresence(mode="wait")가
+   이전 페이지를 완전히 언마운트한 뒤에야 다음 페이지를 마운트하는데, 그 찰나의 틈에 body가
+   순간적으로 콘텐츠 없이 비면(특히 스크롤이 아래로 내려가 있던 상태에서 페이지를 나가면) body
+   배경색이 깔릴 높이 자체가 없어져, 그 위의 html 기본 배경(브라우저 기본값인 흰색)이 화면
+   좌상단 모서리에 아주 짧게 하얗게 비쳐 보인다 — html도 동일한 색으로 깔아 그 틈을 없앤다. */
+html {
+  background-color: #0A0A0A;
 }
 
 body {
-  background-color: #050505;
+  background-color: #0A0A0A;
   color: #fff;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* 네이티브 스크롤바를 숨긴다 — Planning 등 세로 스크롤 화면은 자체 진행률 표시(TOC, 스크롤
+   진행 트랙)로 이미 위치를 안내하므로, OS/브라우저가 그리는 기본 스크롤바가 화면 오른쪽
+   끝에 따로 보이면 디자인과 어긋나 보인다. overflow-y는 그대로 둬 스크롤 자체는 동작한다 —
+   시각적으로만 숨긴다. */
+html {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* 구 Edge/IE */
+}
+html::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/최신 Edge */
+}
+
+/* 페이지 전체가 아니라 안쪽의 작은 스크롤 영역(예: 음악 UI의 곡 목록)용 스크롤바 숨김 유틸 */
+.ryze-no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.ryze-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Planning 챕터 전용 네이티브 스크롤 스냅 — RyzeWorkChapterDetail의 useRyzeSectionSnapScroll은
+   'wheel' 이벤트만 가로채 화면 단위로 smooth scrollTo시키는데, 스크롤바를 직접 드래그하거나
+   키보드(Space/PageDown/방향키)로 스크롤하면 이 JS 스냅을 타지 않아 화면 경계 사이 중간
+   아무데서나 멈출 수 있었다(그 상태에선 다음 화면이 뷰포트 아래쪽에 자연스럽게 걸쳐 보여,
+   "틈"처럼 오인되기 쉽다). 네이티브 CSS scroll-snap을 보조로 깔아 입력 방식과 무관하게 항상
+   화면 경계로 스크롤이 멈추게 한다. RyzeWorkChapterDetail이 Planning 챕터일 때만
+   html에 .ryze-planning-snap 클래스를 토글해, 다른 페이지의 스크롤 동작에는 영향이 없다. */
+html.ryze-planning-snap {
+  scroll-snap-type: y mandatory;
+}
+.ryze-planning-screen {
+  scroll-snap-align: start;
+  /* scroll-snap-stop: always는 일부러 뺐다 — TOC 클릭/다중 휠 틱처럼 한 번에 여러 화면을
+     건너뛰는 JS smooth scrollTo를 "always"가 중간 화면마다 강제로 멈춰 세워, 전체 스크롤이
+     한눈에 안 끝나고 여러 화면을 거쳐 느리게 멈춰 서거나 중간에 멈춰버린 것처럼 보이는
+     문제가 있었다. 기본값(normal)은 스크롤이 "자연스럽게" 멈추려는 지점 근처에서만
+     스냅하므로 이런 다단 점프와 충돌하지 않는다. */
+}
+
+/* "THE WORK" 표시등 글자가 일정한 주기로 꺼졌다 켜지는 깜빡임 — 프레이머 모션의 중첩된
+   키프레임 배열(delay + repeat:Infinity + initial 생략 조합)이 실제로는 애니메이션이
+   멈춰버리는 경우가 있어서, 더 신뢰할 수 있는 순수 CSS 애니메이션으로 대신 구현한다. */
+@keyframes ryzeWorkFlicker {
+  0%, 20% { opacity: 1; }
+  35% { opacity: 0.15; }
+  100% { opacity: 1; }
 }
 
 /* Hide Unicorn Studio Watermark
