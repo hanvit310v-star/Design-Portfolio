@@ -4,6 +4,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { getImageUrl } from './shared';
+import { prefetchRyzeGalleryHeads } from './RyzeWorkGallery';
 
 // Orbitron(700)은 index.css의 구글 폰트 @import(display=swap)로 불러오는데, WORK 카드를 눌러
 // 인트로의 "LET'S"가 이 폰트를 처음 쓰는 순간이라 다운로드가 안 끝나 있으면 폴백 폰트로 잠깐
@@ -22,6 +23,42 @@ if (typeof window !== 'undefined') {
     const img = new Image();
     img.src = getImageUrl(path);
     img.decode?.().catch(() => {});
+  });
+}
+
+// 인트로 효과음도 마찬가지다 — 재생하는 순간에야 new Audio(url)로 요청하면 처음 접속에선 내려받는
+// 시간만큼 소리가 모션보다 밀려 나온다(도착음은 +2.6s, 전화벨은 +4.7s, 문 열림음은 +6.0s 시점에
+// 요청됐다). 모듈 로드 때 미리 받아 두고, 재생할 땐 이 객체를 꺼내 쓴다. 같은 파일을 받는 시점만
+// 앞당기는 것이라 전송량은 같다.
+const RYZE_INTRO_SOUNDS = [
+  'RYZE/elevator-move.mp3',
+  'RYZE/elevator-arrival.mp3',
+  'RYZE/elevator-door-open.mp3',
+  'RYZE/전화벨.wav',
+  "RYZE/듣고있어(I'm Listening).mp3",
+] as const;
+const ryzeIntroSoundCache = new Map<string, HTMLAudioElement>();
+// 미리 받아 둔 효과음을 꺼낸다 — 처음 꺼낼 땐 준비된 객체 그대로, 다시 꺼낼 땐 복제본(같은 HTTP
+// 캐시를 써서 재다운로드는 없다)을 준다. 어느 쪽이든 항상 처음 위치(0초)에서 시작한다.
+const ryzeIntroSoundTaken = new Set<string>();
+function takeRyzeIntroSound(path: string): HTMLAudioElement {
+  let base = ryzeIntroSoundCache.get(path);
+  if (!base) {
+    base = new Audio(getImageUrl(path));
+    base.preload = 'auto';
+    ryzeIntroSoundCache.set(path, base);
+  }
+  const audio = ryzeIntroSoundTaken.has(path) ? (base.cloneNode(true) as HTMLAudioElement) : base;
+  ryzeIntroSoundTaken.add(path);
+  audio.currentTime = 0;
+  return audio;
+}
+if (typeof window !== 'undefined') {
+  RYZE_INTRO_SOUNDS.forEach((path) => {
+    const audio = new Audio(getImageUrl(path));
+    audio.preload = 'auto';
+    audio.load();
+    ryzeIntroSoundCache.set(path, audio);
   });
 }
 
@@ -136,7 +173,7 @@ export const RyzeWorkIntroOverlay: React.FC<{ phase: 'rolling' | 'exiting' }> = 
       window.setTimeout(() => {
         setPhraseIndex(2);
         // 엘리베이터 도착음 — "THE WORK"가 뜨는 순간과 함께 울린다. 볼륨은 아주 살짝만 낮춘다.
-        const arrival = new Audio(getImageUrl('RYZE/elevator-arrival.mp3'));
+        const arrival = takeRyzeIntroSound('RYZE/elevator-arrival.mp3');
         arrival.volume = 0.5;
         arrival.play().catch(() => {});
       }, RYZE_WORK_INTRO_BLACKOUT_MS + RYZE_WORK_INTRO_PHRASE_INTERVAL_MS * 2)
@@ -146,13 +183,18 @@ export const RyzeWorkIntroOverlay: React.FC<{ phase: 'rolling' | 'exiting' }> = 
       timers.forEach((t) => window.clearTimeout(t));
     };
   }, [phase]);
+  // Work 카드를 누른 순간부터 문이 열릴 때까지 5초 가까이 걸리므로, 그 시간을 이용해 챕터 갤러리의
+  // 첫 화면 이미지를 미리 받아 둔다(챕터에 들어가자마자 바로 보이게).
+  useEffect(() => {
+    prefetchRyzeGalleryHeads();
+  }, []);
   // 엘리베이터 이동음 — Work 카드를 누른 순간(=이 오버레이가 처음 마운트되는 순간)부터
   // 문이 열리기 시작하는 순간까지 깔아준다. 시작할 때 살짝 페이드인하고, 문이 열리기
   // 직전에 정확히 페이드아웃이 끝나도록 스케줄링해 뚝 끊기지 않고 자연스럽게 넘어간다.
   // 이 오버레이는 rolling→exiting 동안 계속 마운트된 상태로 유지되므로(AppRoutes에서
   // idle일 때만 언마운트) 마운트 1회짜리 효과로 전체 구간을 커버할 수 있다.
   useEffect(() => {
-    const audio = new Audio(getImageUrl('RYZE/elevator-move.mp3'));
+    const audio = takeRyzeIntroSound('RYZE/elevator-move.mp3');
     audio.loop = true;
     audio.volume = 0;
     audio.play().catch(() => {});
@@ -192,7 +234,7 @@ export const RyzeWorkIntroOverlay: React.FC<{ phase: 'rolling' | 'exiting' }> = 
   useEffect(() => {
     const doorOpenAtMs = RYZE_WORK_INTRO_HOLD_MS + (RYZE_WORK_INTRO_RISE_DURATION + RYZE_WORK_INTRO_DOOR_HOLD_S) * 1000;
     const t = window.setTimeout(() => {
-      const doorOpenSfx = new Audio(getImageUrl('RYZE/elevator-door-open.mp3'));
+      const doorOpenSfx = takeRyzeIntroSound('RYZE/elevator-door-open.mp3');
       doorOpenSfx.volume = 0.9;
       doorOpenSfx.play().catch(() => {});
     }, doorOpenAtMs);
@@ -215,7 +257,7 @@ export const RyzeWorkIntroOverlay: React.FC<{ phase: 'rolling' | 'exiting' }> = 
     let ringFadeTimer: number | undefined;
 
     const ringStartTimer = window.setTimeout(() => {
-      ring = new Audio(getImageUrl('RYZE/전화벨.wav'));
+      ring = takeRyzeIntroSound('RYZE/전화벨.wav');
       ring.volume = 0;
       ring.play().catch(() => {});
       const t0 = performance.now();
@@ -235,7 +277,7 @@ export const RyzeWorkIntroOverlay: React.FC<{ phase: 'rolling' | 'exiting' }> = 
     }, listenAtMs);
 
     const listenTimer = window.setTimeout(() => {
-      const listen = new Audio(getImageUrl("RYZE/듣고있어(I'm Listening).mp3"));
+      const listen = takeRyzeIntroSound("RYZE/듣고있어(I'm Listening).mp3");
       const LISTEN_VOLUME = 0.15;
       const FADE_OUT_S = 0.4;
       listen.volume = LISTEN_VOLUME;

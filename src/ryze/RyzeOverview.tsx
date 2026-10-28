@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
 import { getImageUrl, RYZE_BG, RYZE_FONT, RYZE_INK, RyzeDesignScaleLayer, useRyzeDesignMetrics } from './shared';
 import { RYZE_CARD_COPY, RYZE_CARD_IMAGES, RYZE_GRID_COUNT, RYZE_TITLE_FONT_CSS } from './RyzeProjectsSection';
+import { prefetchRyzeGalleryHeads } from './RyzeWorkGallery';
 
 
 // Overview 상세 페이지 상단 스크롤 히어로에 쓰는 더미 슬라이드 데이터.
@@ -431,6 +432,10 @@ const RyzeWorkChapterList: React.FC<{ onBack: () => void; onOpen: (slug: string)
   // 상대적 비중은 서로 달라 보인다(Planning에서 쓴 것과 같은 RyzeDesignScaleLayer로 감싸
   // 2560 기준 비율을 그대로 유지한다).
   const { scale: designScale, canvasH: designCanvasH } = useRyzeDesignMetrics(true);
+  // 챕터를 고르기 전에 갤러리 첫 화면 이미지를 미리 받아 둔다(인트로를 건너뛰고 들어온 경우 대비).
+  useEffect(() => {
+    prefetchRyzeGalleryHeads();
+  }, []);
 
   return (
     <motion.div

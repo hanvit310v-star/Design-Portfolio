@@ -115,6 +115,55 @@ export const getRyzeGalleryRightEdge = (slug: string, vw: number) => {
   return vw / 2 + Math.min((vw * g.widthPct) / 100, g.maxPx) / 2;
 };
 
+// 이미지 미리 받기 — 챕터에 들어간 뒤에야 요청이 나가면 첫 화면이 그만큼 늦게 뜬다. 같은 파일을 받는
+// 시점만 앞당기는 것이라 총 전송량은 늘지 않는다(C단계의 "나머지 미리 받기"만 안 볼 수도 있는 이미지를
+// 더 받는다). 영상은 용량이 커서(최대 27MB) 제외한다.
+const galleryImageSrcs = (slug: string): string[] => {
+  const g = GALLERIES[slug];
+  const files: string[] = g.items.map(([file]) => file);
+  g.result?.forEach((group) => {
+    if (!Array.isArray(group)) group.items.forEach(({ file }) => files.push(file));
+    else group.forEach((row) => row.forEach((cell) => (Array.isArray(cell[0]) ? (cell as ResultImg[]) : [cell as ResultImg]).forEach(([file]) => files.push(file))));
+  });
+  return files.filter((file) => !isVideo(file)).map((file) => getImageUrl(`${g.folder}/${file}`));
+};
+// 받는 중인 이미지 객체를 붙잡아 두는 곳(GC로 요청이 끊기는 걸 방지) + 이미 요청한 주소 기록.
+const prefetched = new Map<string, HTMLImageElement>();
+const prefetchImage = (src: string, decode: boolean): Promise<void> => {
+  if (prefetched.has(src)) return Promise.resolve();
+  const img = new Image();
+  img.decoding = 'async';
+  prefetched.set(src, img);
+  img.src = src;
+  return (decode && img.decode ? img.decode() : new Promise<void>((resolve) => { img.onload = () => resolve(); img.onerror = () => resolve(); })).catch(() => {});
+};
+// B — 두 갤러리의 맨 위 이미지 몇 장(첫 화면에 보이는 것들)을 디코딩까지 미리 해둔다. 엘리베이터 화면
+// (챕터 목록)이나 Work 인트로가 시작되는 시점에 불러, 챕터를 누르자마자 바로 보이게 한다.
+export const prefetchRyzeGalleryHeads = (count = 4) => {
+  Object.keys(GALLERIES).forEach((slug) => galleryImageSrcs(slug).slice(0, count).forEach((src) => prefetchImage(src, true)));
+};
+// C — 챕터에 들어온 뒤 브라우저가 한가할 때 나머지 이미지를 순서대로 한 장씩 받아 캐시에 둔다(동시에 여러 장을
+// 받아 지금 보고 있는 이미지와 대역폭을 다투지 않도록 직렬). 디코딩은 하지 않아 메모리를 아낀다.
+const useRyzeGalleryPrefetchRest = (slug: string) => {
+  useEffect(() => {
+    if (!GALLERIES[slug]) return;
+    let cancelled = false;
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number };
+    const idle = (cb: () => void) => (w.requestIdleCallback ? w.requestIdleCallback(cb, { timeout: 2000 }) : window.setTimeout(cb, 300));
+    const queue = galleryImageSrcs(slug).filter((src) => !prefetched.has(src));
+    const next = () => {
+      if (cancelled) return;
+      const src = queue.shift();
+      if (!src) return;
+      prefetchImage(src, false).then(() => idle(next));
+    };
+    idle(next);
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+};
+
 // 목차(TOC) 항목 → 클릭 시 스크롤해 갈 갤러리 항목 번호(1부터, 목록 순서 = 화면 순서; 영상 칸도
 // 한 칸으로 센다). 목차 UI는 RyzeWorkChapterDetail이 그리고, 여기서는 데이터와 위치 계산만 맡는다.
 // image는 메인 컬럼의 N번째 항목, resultGroup는 Result 줄(0부터)의 시작 위치를 가리킨다.
@@ -276,6 +325,7 @@ const GalleryVideo: React.FC<{
 // 그림자가 생기지 않도록 그림자는 개별 이미지가 아니라 컬럼 전체에 한 번만 준다).
 export const RyzeWorkGallery: React.FC<{ slug: string }> = ({ slug }) => {
   const gallery = GALLERIES[slug];
+  useRyzeGalleryPrefetchRest(slug);
   if (!gallery) return null;
   const colWidth = `min(${gallery.widthPct}%, ${gallery.maxPx}px)`;
   const shadow = '0 0 10px 0 rgba(0,0,0,0.6), 0 0 3px 0 rgba(0,0,0,0.7)';
