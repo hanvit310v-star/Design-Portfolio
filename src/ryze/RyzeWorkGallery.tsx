@@ -222,7 +222,7 @@ export function useRyzeGalleryActiveToc(slug: string) {
 }
 
 // 소리 있는 영상(withSound)의 재생 음량(0~1) — 페이드인의 목표값. 배경음악(Showroom 기준 1)과의 균형용.
-const SOUND_VIDEO_VOLUME = 0.5;
+const SOUND_VIDEO_VOLUME = 0.4;
 const IMAGE_W = 3840;
 const VIDEO_W = 1670;
 const isVideo = (file: string) => file.endsWith('.webm') || file.endsWith('.mp4');
