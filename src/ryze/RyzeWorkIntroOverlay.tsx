@@ -304,7 +304,11 @@ export const RyzeWorkIntroOverlay: React.FC<{ phase: 'rolling' | 'exiting' }> = 
         }
       />
       <motion.div
-        className="absolute inset-0 flex items-center justify-center"
+        // overflow-hidden: 안쪽 사진은 뷰포트를 cover로 덮으려고 뷰포트보다 크게(가로로 넓은 창일수록
+        // 세로로 더 크게) 깔려 있어서, 이 레이어를 뷰포트 높이(-100%)만큼만 올려 보내면 넘친 아랫부분이
+        // 화면 상단에 어두운 띠로 남아 Back to Main/음악 UI를 가렸다. 레이어 경계에서 잘라 사진이 레이어와
+        // 함께 완전히 빠져나가게 한다(평소엔 바깥 overflow-hidden이 같은 영역을 이미 잘라내므로 모습 동일).
+        className="absolute inset-0 flex items-center justify-center overflow-hidden"
         // 등장할 땐 검정 배경이 다 덮인 뒤(0.4s 지연) Overview 콘텐츠처럼 0.4s에 걸쳐 서서히
         // 페이드인되고(총 0.8s), 나갈 땐 THE WORK 화면 전체(배경+텍스트)가 강한 세로 모션
         // 블러를 매달고 프레임 밖으로 솟구쳐 빠져나간다 — 처음에 가장 빠르고(블러도 가장
@@ -312,7 +316,7 @@ export const RyzeWorkIntroOverlay: React.FC<{ phase: 'rolling' | 'exiting' }> = 
         initial={{ y: '0%', filter: 'blur(0px)', opacity: 0 }}
         animate={
           exiting
-            ? { y: '-100%', filter: ['blur(0px)', 'blur(34px)', 'blur(6px)'], opacity: 1 }
+            ? { y: '-100%', filter: ['blur(0px)', 'blur(34px)', 'blur(6px)'], opacity: [1, 1, 0] }
             : { y: '0%', filter: 'blur(0px)', opacity: 1 }
         }
         transition={{
@@ -321,7 +325,9 @@ export const RyzeWorkIntroOverlay: React.FC<{ phase: 'rolling' | 'exiting' }> = 
           // 등장할 때만 검정 배경이 다 덮인 뒤(0.4s) 이어서 0.4s에 걸쳐 페이드인 — Overview와
           // 같은 총 0.8s. 나갈 땐 위 opacity:1이 그대로 유지되므로(즉시 도달) 별도 종료 페이드
           // 없이 블러+상승만으로 빠져나간다.
-          opacity: exiting ? { duration: 0 } : { delay: 0.4, duration: 0.4 },
+          // 나갈 땐 상승이 끝나는 순간(마지막 3%) 레이어를 투명하게 해, 남은 블러 번짐(6px)이
+          // 화면 상단에 비치지 않게 한다 — 그 시점엔 이미 문이 화면을 다 덮고 있어 눈에 안 띈다.
+          opacity: exiting ? { duration: RYZE_WORK_INTRO_RISE_DURATION, times: [0, 0.97, 1], ease: 'linear' } : { delay: 0.4, duration: 0.4 },
         }}
       >
         {/* 사진의 16:9(1200:675) 비율은 유지하되, 뷰포트를 "꽉 채우도록"(cover) 필요한 쪽으로
