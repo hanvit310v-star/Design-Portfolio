@@ -337,7 +337,7 @@ const RyzeOverviewIntro: React.FC<{ onBack: () => void; designScale: number; des
           initial={false}
           animate={{ opacity: revealed ? 1 : 0, y: revealed ? 0 : 12 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="group cursor-pointer absolute bottom-6 left-6 md:bottom-10 md:left-12 z-10 rounded-full uppercase tracking-widest font-semibold transition-opacity opacity-70 hover:opacity-100 flex items-center gap-2 px-5 py-3"
+          className="group cursor-pointer absolute bottom-6 left-6 md:bottom-10 md:left-12 z-10 rounded-none uppercase tracking-widest font-semibold transition-opacity opacity-70 hover:opacity-100 flex items-center gap-2 px-5 py-3"
           style={{ color: '#F9FAFB', backgroundColor: '#0A0A0A', fontFamily: RYZE_FONT, fontSize: RYZE_TITLE_FONT_CSS }}
         >
           <ArrowRight className="w-4 h-4 rotate-180 transition-transform duration-300 group-hover:-translate-x-1" /> Back to Main

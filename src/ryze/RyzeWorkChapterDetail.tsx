@@ -878,7 +878,7 @@ const RYZE_JOURNEY2_STAGES: {
   { num: '2', numLeft: 1011.5, numTop: 458, label: 'Interest', labelLeft: 1011.5, labelTop: 519, numNudgeX: 1 },
   { num: '3', numLeft: 574.5, numTop: 584, label: 'Consideration', labelLeft: 574.5, labelTop: 645 },
   { num: '4', numLeft: 169, numTop: 710, label: 'Purchase', labelLeft: 169, labelTop: 771, numNudgeY: 0 },
-  { num: '5', numLeft: 598.5, numTop: 836, label: 'Experience', labelLeft: 598.5, labelTop: 897, numNudgeX: -0.2, numNudgeY: -1.2 },
+  { num: '5', numLeft: 598.5, numTop: 836, label: 'Experience', labelLeft: 598.5, labelTop: 897, numNudgeX: -0.2, numNudgeY: -0.2 },
   { num: '6', numLeft: 1011, numTop: 962, label: 'Retention', labelLeft: 1011, labelTop: 1019, numNudgeY: 0 },
 ];
 
@@ -1012,6 +1012,45 @@ const RyzeScrollProgress: React.FC<{
     };
   }, [sectionLimit]);
 
+  // 썸을 잡아 끌면 그만큼 문서가 스크롤된다 — 썸 이동량(px)에 (스크롤 가능한 거리 / 썸이 움직일 수
+  // 있는 거리)를 곱해 scrollY로 환산한다. Planning의 네이티브 scroll-snap(mandatory)은 드래그 중
+  // 매 프레임 가장 가까운 화면 경계로 끌어당겨 썸이 뚝뚝 끊기므로, 드래그하는 동안만 끄고 놓으면
+  // 복구한다(복구되는 순간 가장 가까운 화면 경계로 자연스럽게 안착). 스크롤 → 썸 위치 갱신은
+  // 기존 scroll 리스너가 그대로 맡으므로 드래그 코드는 scrollTo만 호출하면 된다.
+  const onThumbPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // 지연 로딩 등으로 문서 높이가 마지막 스크롤 이후 바뀌었을 수 있어, 잡는 순간 다시 잰다.
+    const doc0 = document.documentElement;
+    const vh0 = window.innerHeight;
+    const totalH0 = sectionLimit ? sectionLimit * vh0 : doc0.scrollHeight;
+    const scrollable = totalH0 - vh0;
+    // 트랙이 스케일 레이어 안에 있으면 화면에 그려지는 크기가 280px와 다르다 — 포인터 이동량(화면 px)과
+    // 단위를 맞추려고 상수가 아니라 실제로 그려진 트랙/썸 크기에서 이동 가능 거리를 구한다.
+    const travel = (e.currentTarget.parentElement?.getBoundingClientRect().height ?? 0) - e.currentTarget.getBoundingClientRect().height;
+    if (e.button !== 0 || scrollable <= 0 || travel <= 0) return;
+    e.preventDefault();
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+    const startY = e.clientY;
+    const startScroll = window.scrollY;
+    const root = document.documentElement;
+    root.style.scrollSnapType = 'none';
+    document.body.style.userSelect = 'none';
+    const onMove = (ev: PointerEvent) => {
+      const next = startScroll + ((ev.clientY - startY) * scrollable) / travel;
+      window.scrollTo({ top: Math.min(scrollable, Math.max(0, next)), behavior: 'instant' });
+    };
+    const onEnd = () => {
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerup', onEnd);
+      el.removeEventListener('pointercancel', onEnd);
+      root.style.scrollSnapType = '';
+      document.body.style.userSelect = '';
+    };
+    el.addEventListener('pointermove', onMove);
+    el.addEventListener('pointerup', onEnd);
+    el.addEventListener('pointercancel', onEnd);
+  };
+
   // 예전엔 visible=false일 때 트랙/썸 DOM 자체를 return null로 안 그렸는데, 그러면 마운트 직후
   // useEffect의 첫 update() 호출 시점엔 아직 (visible이 true로 리렌더되기 전이라) thumbRef.current가
   // null이라 썸의 height/transform을 못 정해주고 그냥 빠져나갔다 — 그래서 실제로 스크롤 이벤트가
@@ -1033,7 +1072,16 @@ const RyzeScrollProgress: React.FC<{
       className={`hidden md:block fixed ${style ? '' : rightClassName} bottom-24 w-2 h-[280px] pointer-events-none transition-opacity duration-500 ease-out ${visible && !forceHidden ? '' : 'opacity-0'}`}
       style={{ backgroundColor: hexToRgba(color, 0.15), ...style }}
     >
-      <div ref={thumbRef} className="absolute left-0 top-0 w-2" style={{ backgroundColor: thumbColor, willChange: 'transform' }} />
+      {/* 트랙은 pointer-events-none이라, 썸만 auto로 켜서 잡을 수 있게 한다. 폭 8px는 잡기 어려워
+          좌우로 투명한 터치 영역(-inset-x-3)을 덧댄다. */}
+      <div
+        ref={thumbRef}
+        onPointerDown={onThumbPointerDown}
+        className="absolute left-0 top-0 w-2 pointer-events-auto cursor-pointer touch-none"
+        style={{ backgroundColor: thumbColor, willChange: 'transform' }}
+      >
+        <div className="absolute -inset-x-3 inset-y-0" />
+      </div>
     </div>
   );
 };
@@ -1302,7 +1350,7 @@ const RyzeWorkChapterDetail: React.FC = () => {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className={`group cursor-pointer fixed z-20 bottom-6 left-6 md:bottom-10 md:left-12 uppercase tracking-widest font-semibold transition-[opacity,color] duration-300 opacity-70 hover:opacity-100 flex items-center gap-2 pointer-events-auto ${isPlanning || isGallery ? 'text-sm' : 'rounded-full px-5 py-3'}`}
+        className={`group cursor-pointer fixed z-20 bottom-6 left-6 md:bottom-10 md:left-12 uppercase tracking-widest font-semibold transition-[opacity,color] duration-300 opacity-70 hover:opacity-100 flex items-center gap-2 pointer-events-auto ${isPlanning || isGallery ? 'text-sm' : 'rounded-none px-5 py-3'}`}
         style={
           isPlanning
             ? { color: isPlanningDarkCorner ? '#F9FAFB' : '#0A0A0A', fontFamily: RYZE_FONT }
