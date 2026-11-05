@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
-import { getImageUrl, RYZE_BG, RYZE_FONT, RYZE_INK, RyzeDesignScaleLayer, useRyzeDesignMetrics } from './shared';
+import { createRyzeWheelGate, getImageUrl, RYZE_BG, RYZE_FONT, RYZE_INK, RyzeDesignScaleLayer, useRyzeDesignMetrics } from './shared';
 import { RYZE_CARD_COPY, RYZE_CARD_IMAGES, RYZE_GRID_COUNT, RYZE_TITLE_FONT_CSS } from './RyzeProjectsSection';
 import { prefetchRyzeGalleryHeads } from './RyzeWorkGallery';
 
@@ -21,13 +21,13 @@ const RYZE_OVERVIEW_SLIDES: { images: [string, string]; title: string; subtitle:
   {
     images: ['RYZE/card2.webp', 'RYZE/card3.png'],
     title: 'Brand & Visuals',
-    subtitle: 'Interfaces, built with AI',
+    subtitle: 'Identity, visualized with AI',
     subtitleKo: '아이덴티티, AI로 시각화하다',
   },
   {
     images: ['RYZE/card4.webp', 'RYZE/card1.webp'],
     title: 'Content Design',
-    subtitle: 'Identity, visualized with AI',
+    subtitle: 'Content, converted with AI',
     subtitleKo: '콘텐츠, AI로 전환을 만들다',
   },
 ];
@@ -134,11 +134,10 @@ const RyzeOverviewHero: React.FC<{ onBack: () => void; designScale: number; desi
   const total = RYZE_OVERVIEW_SLIDES.length;
   const [active, setActive] = useState(0);
   const activeRef = useRef(0);
-  const locked = useRef(false);
-  const lastChangeAt = useRef(0);
-  // 마지막 카드 → 3열 레이아웃(그리고 그 반대)으로 넘어갈 때 스크롤 스냅 애니메이션이
-  // 진행 중인지 — 애니메이션 도중 들어오는 추가 휠 입력으로 scrollTo가 중복 호출되는 것을 막는다.
-  const snapping = useRef(false);
+  // 휠 한 번의 스와이프를 한 칸(카드 전환/스냅)으로만 받아들이는 게이트 — 트랙패드 관성 때문에
+  // 한 번 밀었는데 두 칸 넘어가던 문제를 막는다(createRyzeWheelGate 주석 참고). 카드 전환
+  // 애니메이션과 마지막 카드 ↔ 3열 영역 사이 스냅 스크롤의 중복 실행도 이 게이트가 함께 막는다.
+  const gate = useRef(createRyzeWheelGate());
 
   useEffect(() => {
     activeRef.current = active;
@@ -147,11 +146,9 @@ const RyzeOverviewHero: React.FC<{ onBack: () => void; designScale: number; desi
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
       if (Math.abs(e.deltaY) < 1) return;
-      // 스냅 애니메이션(JS의 smooth scrollTo)이 진행 중일 때 트랙패드 관성 스크롤 등으로 추가
-      // 휠 이벤트가 들어오면, 그걸 막지 않고 그냥 흘려보내던 게 "뚝" 끊기는 원인이었다 — 브라우저
-      // 기본 스크롤과 우리가 실행 중인 smooth scrollTo가 동시에 같은 스크롤 위치를 두고 충돌하며
-      // 버벅였다. 애니메이션이 끝날 때까지는 모든 휠 입력을 완전히 삼킨다.
-      if (snapping.current) { e.preventDefault(); return; }
+      // 애니메이션 진행 중이거나 직전 스와이프의 관성이 이어지는 동안엔 모든 휠 입력을 삼킨다.
+      // (스냅 smooth scrollTo 도중 브라우저 기본 스크롤이 끼어들어 버벅이던 것도 함께 방지)
+      if (!gate.current.accepts(e)) { e.preventDefault(); return; }
       const dir = e.deltaY > 0 ? 1 : -1;
 
       // 히어로는 실제로는 스크롤되지 않는 h-screen 고정 박스라, 카드를 넘기는 동안 문서 스크롤
@@ -159,43 +156,31 @@ const RyzeOverviewHero: React.FC<{ onBack: () => void; designScale: number; desi
       // 넘기기는 더 이상 가로채지 않되, 그 영역 맨 위쪽에서 위로 스크롤하면 히어로로 다시
       // 스냅해 들어가도록 한다 — 어중간한 위치에 걸쳐 있지 않고 두 구간을 딱 붙여서 오간다.
       if (window.scrollY > 0) {
-        if (dir < 0 && window.scrollY < window.innerHeight && !snapping.current) {
+        if (dir < 0 && window.scrollY < window.innerHeight) {
           e.preventDefault();
-          snapping.current = true;
+          gate.current.consume(600);
           window.scrollTo({ top: 0, behavior: 'smooth' });
-          window.setTimeout(() => { snapping.current = false; }, 600);
         }
         return;
       }
       const next = activeRef.current + dir;
       if (next < 0 || next > total - 1) {
-        // 마지막(또는 첫) 카드라도, 그 카드로 들어오는 전환 모션이 아직 다 끝나지 않았으면
-        // 대지(다음 섹션)로 넘어가는 것도 막는다 — 모션이 완전히 끝난 뒤에야 스냅 스크롤이
-        // 이어지도록 한다.
-        const stillAnimating = locked.current || Date.now() - lastChangeAt.current < SLIDE_TRANSITION.duration * 1000;
-        if (stillAnimating) { e.preventDefault(); return; }
-        // 모션이 끝난 뒤 아래로 흘려보내는 첫 휠 입력 — 어중간하게 흘러가지 않고 3열
-        // 레이아웃 영역 맨 위로 곧장 스냅한다.
-        if (dir > 0 && next > total - 1 && !snapping.current) {
+        // 마지막 카드에서 아래로 — 어중간하게 흘러가지 않고 3열 레이아웃 영역 맨 위로 곧장
+        // 스냅한다. 카드 전환 모션이 끝나기 전의 입력은 위 게이트가 이미 걸러냈다.
+        if (dir > 0 && next > total - 1) {
           e.preventDefault();
-          snapping.current = true;
+          gate.current.consume(700);
           // 히어로 높이(=innerHeight)만큼 내려가는 게 기본이지만, 3열 레이아웃이 한 화면보다
           // 짧으면 문서 끝(스크롤 가능한 최대치)이 그보다 먼저 온다 — 그 경우 문서 끝에서
           // 멈춰야 3열 레이아웃 전체가 화면에 딱 맞게 보인다.
           const target = document.documentElement.scrollHeight - window.innerHeight;
           window.scrollTo({ top: target, behavior: 'smooth' });
-          window.setTimeout(() => { snapping.current = false; }, 700);
         }
         return;
       }
       e.preventDefault();
-      if (locked.current) return;
-      locked.current = true;
-      lastChangeAt.current = Date.now();
+      gate.current.consume(SLIDE_TRANSITION.duration * 1000 + 60);
       setActive(next);
-      window.setTimeout(() => {
-        locked.current = false;
-      }, SLIDE_TRANSITION.duration * 1000 + 60);
     };
     window.addEventListener('wheel', onWheel, { passive: false });
     return () => window.removeEventListener('wheel', onWheel);
@@ -267,14 +252,17 @@ const RYZE_OVERVIEW_INTRO_PAGES: {
   {
     number: '01',
     title: 'AI Design Project',
+    // 한 항목이 한 줄(가독성을 위해 직접 줄바꿈한 위치 그대로)이고, 빈 문자열('')은 단락 사이 간격이다.
     body: [
-      '가상의 패션 브랜드 RYZE를 통해 기획, 브랜드 전략,',
-      '무드보드, 이미지 · 영상 제작에 이르는 다양한',
-      '디자인 영역에 AI를 도입하여 워크플로우의 생산성과',
-      '비용 효율을 실험하고, 고품질 결과물을 위한',
-      '프로세스를 정립하고자 합니다.',
+      '가상의 패션 브랜드 RYZE는, AI라는 매체를 활용해 디자이너가 단일 직군의 경계를 넘어 기획부터',
+      '전략, 시각적 디렉팅에 이르는 과정을 어떻게 입체적으로 확장할 수 있는가 실험하는 프로젝트입니다.',
+      '',
+      '본 프로젝트는 단순히 툴의 속도나 결과물 생산에 주목하는 것이 아니라,',
+      'AI를 사고의 지평을 넓히고 비전을 구체화하는 전략적 매개체로 어떻게 다룰 수 있는가에 집중합니다.',
+      '',
+      '이 과정에서 AI의 결과물을 일방적으로 수용하는 것이 아니라, 예리한 시선으로 맥락을 검증하고 다듬어',
+      '가능성과 브랜드의 철학이 가장 이상적인 형태로 결속되는 지점을 완성해 나갑니다.',
     ],
-    note: ['해당 포트폴리오를 구성하고 있는 모든 콘텐츠는', 'AI로 제작된 결과물입니다.'],
     date: '2026.08 ~ 2026.09',
   },
   {
@@ -285,7 +273,7 @@ const RYZE_OVERVIEW_INTRO_PAGES: {
   {
     number: '03',
     title: 'Tool Used',
-    list: ['Higgsfield', 'Midjourney', 'Claud Code', 'Figma', 'ChatGPT', 'Google Gemini', 'Adobe Photoshop', 'Adobe Illustrator'],
+    list: ['Higgsfield', 'Midjourney', 'Claude Code', 'Figma', 'ChatGPT', 'Google Gemini', 'Adobe Photoshop', 'Adobe Illustrator'],
   },
 ];
 
@@ -372,10 +360,10 @@ const RyzeOverviewIntro: React.FC<{ onBack: () => void; designScale: number; des
                   <span style={{ letterSpacing: '-0.28px' }}>{page.title}</span>
                 </RevealUp>
                 {page.body && (
-                  <div className="max-w-[300px] md:max-w-[360px] text-[15px] md:text-[16px] leading-[1.6]" style={{ opacity: 0.75 }}>
-                    {page.body.map((line, li) => (
-                      <RevealUp key={li} revealed={revealed} delay={nextDelay()}>{line}</RevealUp>
-                    ))}
+                  <div className="md:max-w-none whitespace-nowrap text-[15px] md:text-[16px] leading-[1.6]" style={{ opacity: 0.75 }}>
+                    {page.body.map((line, li) =>
+                      line === '' ? <div key={li} className="h-4" /> : <RevealUp key={li} revealed={revealed} delay={nextDelay()}>{line}</RevealUp>,
+                    )}
                   </div>
                 )}
                 {page.note && (

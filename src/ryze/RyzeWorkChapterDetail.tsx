@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
 import { RYZE_GALLERY_TOC, RyzeWorkGallery, getRyzeGalleryBg, getRyzeGalleryRightEdge, hasRyzeGallery, isRyzeGalleryLight, scrollToRyzeGalleryItem, useRyzeGalleryActiveToc } from './RyzeWorkGallery';
 import { RYZE_TITLE_FONT_CSS } from './RyzeProjectsSection';
-import { getImageUrl, hexToRgba, RYZE_BG, RYZE_FONT, RYZE_INK, RyzeDesignScaleLayer, RyzeMusicToggleWithLabel, useRyzeDesignMetrics } from './shared';
+import { createRyzeWheelGate, getImageUrl, hexToRgba, RYZE_BG, RYZE_FONT, RYZE_INK, RyzeDesignScaleLayer, RyzeMusicToggleWithLabel, useRyzeDesignMetrics } from './shared';
 
 const RYZE_WORK_CHAPTERS: { slug: string; title: string }[] = [
   { slug: 'planning', title: 'Planning' },
@@ -567,8 +567,9 @@ const RyzePlanningTextColumn: React.FC<{
   title: string;
   subtitle?: string;
   paragraphs: string[];
+  sources?: string[];
   quote?: string;
-}> = ({ ink, title, subtitle, paragraphs, quote }) => (
+}> = ({ ink, title, subtitle, paragraphs, sources, quote }) => (
   <div className="absolute left-6 md:left-12 top-64 md:top-80 max-w-[520px] md:max-w-[620px]">
     <motion.p
       initial={{ opacity: 0, y: 16 }}
@@ -604,6 +605,21 @@ const RyzePlanningTextColumn: React.FC<{
         <p key={i}>{p}</p>
       ))}
     </motion.div>
+    {/* 본문 아래 출처 목록 — 본문과 같은 폰트 크기/굵기, 색만 옅은 회색 */}
+    {sources && (
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false, amount: 0.3 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: subtitle ? 0.5 : 0.4 }}
+        className="mt-16 flex flex-col gap-1 text-[15px] md:text-[16px] leading-[1.6]"
+        style={{ color: '#9A9A9A', fontFamily: RYZE_FONT }}
+      >
+        {sources.map((s, i) => (
+          <p key={i}>- {s}</p>
+        ))}
+      </motion.div>
+    )}
     {quote && (
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -1035,22 +1051,23 @@ const RyzeScrollProgress: React.FC<{
 // (해상도가 클수록 1px가 스케일되어 더 크게 보여 더 눈에 띄었다). vh 대신 실제 한 섹션의
 // 스크롤 보폭(step)을 써서 이 드리프트를 없앤다.
 function useRyzeSectionSnapScroll(sectionCount: number, enabled: boolean, designScale: number = 0) {
-  const snapping = useRef(false);
+  const gate = useRef(createRyzeWheelGate());
 
   useEffect(() => {
     if (!enabled || sectionCount <= 1) return;
     const onWheel = (e: WheelEvent) => {
       if (Math.abs(e.deltaY) < 1) return;
-      if (snapping.current) { e.preventDefault(); return; }
+      // 애니메이션 중이거나 직전 스와이프의 트랙패드 관성이 아직 이어지는 동안엔 삼킨다
+      // (한 번의 스와이프가 두 화면 이상 넘어가던 원인 — createRyzeWheelGate 주석 참고).
+      if (!gate.current.accepts(e)) { e.preventDefault(); return; }
       const dir = e.deltaY > 0 ? 1 : -1;
       const step = window.innerHeight - designScale;
       const current = Math.round(window.scrollY / step);
       const next = Math.min(sectionCount - 1, Math.max(0, current + dir));
       if (next === current) return; // 맨 위/맨 아래에서는 그냥 흘려보낸다(브라우저 기본 동작).
       e.preventDefault();
-      snapping.current = true;
+      gate.current.consume(700);
       window.scrollTo({ top: next * step, behavior: 'smooth' });
-      window.setTimeout(() => { snapping.current = false; }, 700);
     };
     window.addEventListener('wheel', onWheel, { passive: false });
     return () => window.removeEventListener('wheel', onWheel);
@@ -1426,6 +1443,10 @@ const RyzeWorkChapterDetail: React.FC = () => {
           paragraphs={[
             "핀터레스트가 매년 발표하는 연간 트렌드 예측 리포트에서 두툼한 벨트 +65%, 헐렁한 정장 +90%, 하이칼라 재킷 +60%, 금색 커프+ 50%, 80년대 럭셔리 +225%의 핀터레스트의 자체 검색 통계를 발표하며, 어깨선이 강조된 맞춤 정장이 더 커지고 액세서리는 더 굵고 대담해지는 1980년대의 '파워 드레싱(Power Dressing)'의 패션 트렌드가 2026년의 트렌드일 것임을 시사하고 있으며, 이 유행을 MZ세대가 주도한다는 발표였습니다.",
             "가장 신뢰도 높은 패션 업계 전문지로 꼽히는 'WWD(Women's Wear Daily)' 또한 핀터레스트의 예측리포트를 자체 검증 후 보도했습니다. 단순한 소셜 플랫폼의 트렌드 예측이 아닌, 업계 전문가들이 실제로 주목할 만한 신호로서 해석할 수 있습니다.",
+          ]}
+          sources={[
+            'Pinterest Predicts 2026 — Glamoratti',
+            'WWD, "Cool Blue Hues, Paleontologist Aesthetic ..."',
           ]}
         />
       )}

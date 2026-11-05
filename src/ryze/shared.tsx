@@ -378,6 +378,44 @@ export const unduckRyzeBgm = () => {
   playRyzeTrackWithFade(ryzeBgmState.track);
 };
 
+// 휠 "제스처" 게이트 — 휠 스냅(화면/카드 단위로 한 칸씩 넘기기)이 트랙패드 한 번의 스와이프를
+// 두 칸 이상으로 받아들이지 않게 한다. 트랙패드는 손가락을 뗀 뒤에도 관성으로 휠 이벤트가
+// 1~2초간 계속(점점 작아지며) 들어오는데, 애니메이션 시간만큼의 타이머 잠금은 이 관성이 끝나기
+// 전에 풀려 버려서 남은 관성 이벤트가 곧바로 "다음 칸" 입력으로 처리되던 게 원인이었다.
+// 그래서 한 칸을 넘기고 나면 "그 제스처가 끝났다"고 판단될 때까지 이후 이벤트를 전부 무시한다:
+//  - 이벤트가 GAP_MS 이상 끊기면 → 손을 뗐다가 새로 시작한 것
+//  - 델타 크기가 직전보다 눈에 띄게 커지면 → 관성(감소)이 아니라 새 스와이프가 시작된 것
+// 마우스 휠 한 칸(노치)은 이벤트 사이가 충분히 벌어져 있어 매번 새 제스처로 인식된다.
+const RYZE_WHEEL_GESTURE_GAP_MS = 100;
+export const createRyzeWheelGate = () => {
+  let lastT = 0;
+  let lastAbs = 0;
+  let consumed = false; // 이번 제스처로 이미 한 칸을 넘겼는가
+  let busyUntil = 0; // 애니메이션 잠금(이 시각 전엔 어떤 입력도 받지 않음)
+  return {
+    // 이 휠 이벤트로 "새 칸 이동"을 시작해도 되는지. 매 휠 이벤트마다 한 번만 호출한다.
+    accepts(e: WheelEvent): boolean {
+      const now = performance.now();
+      const abs = Math.abs(e.deltaY);
+      const gap = now - lastT;
+      const rising = abs > lastAbs * 1.5 + 3;
+      lastT = now;
+      lastAbs = abs;
+      if (now < busyUntil) return false;
+      if (consumed) {
+        if (gap > RYZE_WHEEL_GESTURE_GAP_MS || rising) consumed = false;
+        else return false;
+      }
+      return true;
+    },
+    // 한 칸 이동을 실제로 시작했을 때 호출 — ms 동안 잠그고, 그 제스처의 관성도 소비 처리한다.
+    consume(ms: number) {
+      consumed = true;
+      busyUntil = performance.now() + ms;
+    },
+  };
+};
+
 // 히어로 1회 재생 플래그
 // 히어로 스플래시가 "이번 RYZE 방문"에서 이미 재생됐는지 — RYZE 영역(pathname 기준) 안에서
 // project-new ↔ projects/:n 사이를 오가는 동안엔 true로 유지되어 히어로가 다시 재생되지 않고,
@@ -584,18 +622,18 @@ const RyzeBgmTrackList: React.FC<{ inkColor: string }> = ({ inkColor }) => {
   // 마우스 휠 — 목록 위에서 굴리면 한 번에 한 곡씩 넘긴다. React의 onWheel은 passive라
   // preventDefault가 안 먹어서(페이지 스냅 스크롤/일반 스크롤로 새버림) 네이티브 리스너를
   // passive:false로 직접 달고, stopPropagation으로 window의 스냅 스크롤 핸들러까지 막는다.
-  // 휠은 짧은 시간에 여러 번 발생하므로 220ms 쿨다운으로 한 번의 굴림이 한 곡만 넘기게 한다.
+  // 휠은 짧은 시간에 여러 번 발생하므로 휠 제스처 게이트로 한 번의 굴림/스와이프가 한 곡만 넘기게 한다.
   const windowRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = windowRef.current;
     if (!el) return;
-    let lastStep = 0;
+    const gate = createRyzeWheelGate();
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      const now = performance.now();
-      if (Math.abs(e.deltaY) < 4 || now - lastStep < 220) return;
-      lastStep = now;
+      // 220ms 쿨다운만으로는 트랙패드 관성이 곡을 여러 개 건너뛰게 했다 — 한 스와이프 = 한 곡.
+      if (Math.abs(e.deltaY) < 4 || !gate.accepts(e)) return;
+      gate.consume(220);
       setFocus((f) => Math.min(last, Math.max(0, f + (e.deltaY > 0 ? 1 : -1))));
     };
     el.addEventListener('wheel', onWheel, { passive: false });
