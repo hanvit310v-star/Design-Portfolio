@@ -5,8 +5,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
 import { createRyzeWheelGate, getImageUrl, RYZE_BG, RYZE_FONT, RYZE_INK, RyzeDesignScaleLayer, useRyzeDesignMetrics } from './shared';
-import { RYZE_CARD_COPY, RYZE_CARD_IMAGES, RYZE_GRID_COUNT, RYZE_TITLE_FONT_CSS } from './RyzeProjectsSection';
-import { prefetchRyzeGalleryHeads } from './RyzeWorkGallery';
+import { RYZE_CARD_COPY, RYZE_CARD_IMAGES, RYZE_GRID_COUNT } from './RyzeProjectsSection';
+import { prefetchRyzeWorkChapterImages } from './RyzeWorkChapterDetail';
 
 
 // Overview 상세 페이지 상단 스크롤 히어로에 쓰는 더미 슬라이드 데이터.
@@ -198,13 +198,26 @@ const RyzeOverviewHero: React.FC<{ onBack: () => void; designScale: number; desi
       {RYZE_OVERVIEW_SLIDES.map((slide, i) => (
         <RyzeOverviewSlide key={i} slide={slide} index={i} entered={i <= active} />
       ))}
+      {/* Work 화면의 Back to Main(RyzeBackToMainButton)과 같은 규칙 — 해상도와 무관하게 항상 같은 화면
+          크기(text-sm 14px, 위 40px/왼쪽 48px). 이 버튼은 스케일 캔버스 "안쪽"이라 그대로 두면 캔버스
+          배율을 따라 커졌다 작아졌다 하므로, 배율의 역수로 되돌려 실제 화면 크기를 고정한다
+          (위치 오프셋도 같은 역수를 곱해 화면 기준 px로 맞춘다). */}
       <motion.button
         onClick={onBack}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="group cursor-pointer absolute top-6 left-6 md:top-10 md:left-12 uppercase tracking-widest transition-opacity opacity-70 hover:opacity-100 flex items-center gap-2"
-        style={{ color: RYZE_INK, zIndex: total + 1, fontSize: RYZE_TITLE_FONT_CSS }}
+        className="group cursor-pointer absolute text-sm uppercase tracking-widest font-semibold transition-opacity opacity-60 hover:opacity-100 flex items-center gap-2"
+        style={{
+          color: RYZE_INK,
+          fontFamily: RYZE_FONT,
+          zIndex: total + 1,
+          top: 40 / (designScale || 1),
+          left: 48 / (designScale || 1),
+          scale: 1 / (designScale || 1),
+          originX: 0,
+          originY: 0,
+        }}
       >
         <ArrowRight className="w-4 h-4 rotate-180 transition-transform duration-300 group-hover:-translate-x-1" /> Back to Main
       </motion.button>
@@ -329,16 +342,25 @@ const RyzeOverviewIntro: React.FC<{ onBack: () => void; designScale: number; des
       <div className="relative flex" style={{ height: Math.round(Math.max(1080, designCanvasH * 0.85)), gap: '3px' }}>
         {/* 히어로의 Back to Main은 그 h-screen 박스 안에서만 절대 위치해 스크롤로 3열 레이아웃까지
             내려오면 화면에서 사라진다 — 이 구간에서도 동일하게 돌아갈 수 있도록 여기 다시 둔다.
-            다른 화면들의 검정 알약 Back to Main/Work 버튼과 크기를 통일하기 위해 스케일 캔버스
-            "안쪽"(2560 디자인 좌표계)으로 옮겨, transform이 폰트/패딩/보더radius까지 함께
-            축소·확대하게 한다(캔버스 밖에 두면 실제 px 그대로 그려져 해상도별로 다른 크기가 됨). */}
+            히어로/Work 화면의 Back to Main과 같은 규칙으로, 해상도와 무관하게 항상 같은 화면 크기
+            (text-sm 14px, 왼쪽 48px/아래 40px)로 보이게 한다 — 스케일 캔버스 안쪽이라 배율의 역수로
+            되돌려 고정한다(위치 오프셋도 역수를 곱해 화면 기준 px로 맞춤). */}
         <motion.button
           onClick={onBack}
           initial={false}
           animate={{ opacity: revealed ? 1 : 0, y: revealed ? 0 : 12 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="group cursor-pointer absolute bottom-6 left-6 md:bottom-10 md:left-12 z-10 rounded-none uppercase tracking-widest font-semibold transition-opacity opacity-70 hover:opacity-100 flex items-center gap-2 px-5 py-3"
-          style={{ color: '#F9FAFB', backgroundColor: '#0A0A0A', fontFamily: RYZE_FONT, fontSize: RYZE_TITLE_FONT_CSS }}
+          className="group cursor-pointer absolute z-10 rounded-none text-sm uppercase tracking-widest font-semibold transition-opacity opacity-70 hover:opacity-100 flex items-center gap-2 px-5 py-3"
+          style={{
+            color: '#F9FAFB',
+            backgroundColor: '#0A0A0A',
+            fontFamily: RYZE_FONT,
+            bottom: 40 / (designScale || 1),
+            left: 48 / (designScale || 1),
+            scale: 1 / (designScale || 1),
+            originX: 0,
+            originY: 1,
+          }}
         >
           <ArrowRight className="w-4 h-4 rotate-180 transition-transform duration-300 group-hover:-translate-x-1" /> Back to Main
         </motion.button>
@@ -360,14 +382,14 @@ const RyzeOverviewIntro: React.FC<{ onBack: () => void; designScale: number; des
                   <span style={{ letterSpacing: '-0.28px' }}>{page.title}</span>
                 </RevealUp>
                 {page.body && (
-                  <div className="md:max-w-none whitespace-nowrap text-[15px] md:text-[16px] leading-[1.6]" style={{ opacity: 0.75 }}>
+                  <div className="md:max-w-none whitespace-nowrap text-[15px] md:text-[17px] leading-[1.6]" style={{ opacity: 0.75 }}>
                     {page.body.map((line, li) =>
                       line === '' ? <div key={li} className="h-4" /> : <RevealUp key={li} revealed={revealed} delay={nextDelay()}>{line}</RevealUp>,
                     )}
                   </div>
                 )}
                 {page.note && (
-                  <div className="max-w-[300px] md:max-w-[390px] text-[15px] md:text-[16px] leading-[1.5]" style={{ opacity: 0.75 }}>
+                  <div className="max-w-[300px] md:max-w-[390px] text-[15px] md:text-[17px] leading-[1.5]" style={{ opacity: 0.75 }}>
                     {page.note.map((line, li) => (
                       <RevealUp key={li} revealed={revealed} delay={nextDelay()}>{line}</RevealUp>
                     ))}
@@ -379,7 +401,7 @@ const RyzeOverviewIntro: React.FC<{ onBack: () => void; designScale: number; des
                   </RevealUp>
                 )}
                 {page.list && (
-                  <div className="max-w-[300px] text-[15px] md:text-[16px] leading-[2.4]" style={{ opacity: 0.75 }}>
+                  <div className="max-w-[300px] text-[15px] md:text-[17px] leading-[2.4]" style={{ opacity: 0.75 }}>
                     {page.list.map((item, li) => (
                       <RevealUp key={li} revealed={revealed} delay={nextDelay()}>
                         <span className="flex">
@@ -422,7 +444,7 @@ const RyzeWorkChapterList: React.FC<{ onBack: () => void; onOpen: (slug: string)
   const { scale: designScale, canvasH: designCanvasH } = useRyzeDesignMetrics(true);
   // 챕터를 고르기 전에 갤러리 첫 화면 이미지를 미리 받아 둔다(인트로를 건너뛰고 들어온 경우 대비).
   useEffect(() => {
-    prefetchRyzeGalleryHeads();
+    prefetchRyzeWorkChapterImages();
   }, []);
 
   return (
@@ -456,9 +478,9 @@ const RyzeWorkChapterList: React.FC<{ onBack: () => void; onOpen: (slug: string)
       </div>
       <div className="relative flex-1 flex flex-col justify-center px-6 sm:px-10 md:px-14 lg:px-20 pb-24">
         <RyzeDesignScaleLayer enabled scale={designScale} canvasH={designCanvasH}>
-        {/* max-w-[1550px]는 이제 2560 디자인 캔버스 내부 좌표라, scale이 곱해지면 실제로는
-            1550×scale px가 된다 — 2560 기준 비율이 그대로 유지된다. */}
-        <div className="w-full max-w-[1550px] mx-auto">
+        {/* max-w-[1850px]는 이제 2560 디자인 캔버스 내부 좌표라, scale이 곱해지면 실제로는
+            1850×scale px가 된다 — 2560 기준 비율이 그대로 유지된다. */}
+        <div className="w-full max-w-[1850px] mx-auto">
           {RYZE_WORK_CHAPTER_LIST.map((chapter, i) => {
             const isActive = hovered === null || i === hovered;
             return (
@@ -471,7 +493,7 @@ const RyzeWorkChapterList: React.FC<{ onBack: () => void; onOpen: (slug: string)
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 + i * 0.08 }}
                 className={`group w-full flex items-baseline justify-between gap-3 sm:gap-5 cursor-pointer py-4 sm:py-6 md:py-9 ${
-                  i < RYZE_WORK_CHAPTER_LIST.length - 1 ? 'border-b' : ''
+                  i < RYZE_WORK_CHAPTER_LIST.length - 1 ? 'border-b-2' : ''
                 }`}
                 style={{ borderColor: 'rgba(245,245,240,0.15)' }}
               >

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { duckRyzeBgmForVideo, fadeRyzeAudio, getImageUrl, unduckRyzeBgm } from './shared';
+import { duckRyzeBgmForVideo, fadeRyzeAudio, getImageUrl, isRyzeImagePrefetched, prefetchRyzeImage, runWhenRyzeIdle, unduckRyzeBgm } from './shared';
 
 // 작업물 갤러리가 있는 챕터(Brand & Visuals, Content Design)가 같이 쓰는 갤러리 — 챕터별로 폴더와
 // 파일 목록만 다르고 레이아웃은 같다. 양옆 여백(대지) 색은 챕터 페이지 배경과 같아야 경계가 안
@@ -127,20 +127,10 @@ const galleryImageSrcs = (slug: string): string[] => {
   });
   return files.filter((file) => !isVideo(file)).map((file) => getImageUrl(`${g.folder}/${file}`));
 };
-// 받는 중인 이미지 객체를 붙잡아 두는 곳(GC로 요청이 끊기는 걸 방지) + 이미 요청한 주소 기록.
-const prefetched = new Map<string, HTMLImageElement>();
-const prefetchImage = (src: string, decode: boolean): Promise<void> => {
-  if (prefetched.has(src)) return Promise.resolve();
-  const img = new Image();
-  img.decoding = 'async';
-  prefetched.set(src, img);
-  img.src = src;
-  return (decode && img.decode ? img.decode() : new Promise<void>((resolve) => { img.onload = () => resolve(); img.onerror = () => resolve(); })).catch(() => {});
-};
 // B — 두 갤러리의 맨 위 이미지 몇 장(첫 화면에 보이는 것들)을 디코딩까지 미리 해둔다. 엘리베이터 화면
 // (챕터 목록)이나 Work 인트로가 시작되는 시점에 불러, 챕터를 누르자마자 바로 보이게 한다.
 export const prefetchRyzeGalleryHeads = (count = 4) => {
-  Object.keys(GALLERIES).forEach((slug) => galleryImageSrcs(slug).slice(0, count).forEach((src) => prefetchImage(src, true)));
+  Object.keys(GALLERIES).forEach((slug) => galleryImageSrcs(slug).slice(0, count).forEach((src) => prefetchRyzeImage(src, true)));
 };
 // C — 챕터에 들어온 뒤 브라우저가 한가할 때 나머지 이미지를 순서대로 한 장씩 받아 캐시에 둔다(동시에 여러 장을
 // 받아 지금 보고 있는 이미지와 대역폭을 다투지 않도록 직렬). 디코딩은 하지 않아 메모리를 아낀다.
@@ -148,14 +138,13 @@ const useRyzeGalleryPrefetchRest = (slug: string) => {
   useEffect(() => {
     if (!GALLERIES[slug]) return;
     let cancelled = false;
-    const w = window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number };
-    const idle = (cb: () => void) => (w.requestIdleCallback ? w.requestIdleCallback(cb, { timeout: 2000 }) : window.setTimeout(cb, 300));
-    const queue = galleryImageSrcs(slug).filter((src) => !prefetched.has(src));
+    const idle = (cb: () => void) => runWhenRyzeIdle(cb, 2000);
+    const queue = galleryImageSrcs(slug).filter((src) => !isRyzeImagePrefetched(src));
     const next = () => {
       if (cancelled) return;
       const src = queue.shift();
       if (!src) return;
-      prefetchImage(src, false).then(() => idle(next));
+      prefetchRyzeImage(src, false).then(() => idle(next));
     };
     idle(next);
     return () => {

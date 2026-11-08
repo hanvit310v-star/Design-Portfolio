@@ -4,7 +4,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { getImageUrl } from './shared';
-import { prefetchRyzeGalleryHeads } from './RyzeWorkGallery';
+import { prefetchRyzeWorkChapterImages } from './RyzeWorkChapterDetail';
 
 // Orbitron(700)은 index.css의 구글 폰트 @import(display=swap)로 불러오는데, WORK 카드를 눌러
 // 인트로의 "LET'S"가 이 폰트를 처음 쓰는 순간이라 다운로드가 안 끝나 있으면 폴백 폰트로 잠깐
@@ -186,7 +186,7 @@ export const RyzeWorkIntroOverlay: React.FC<{ phase: 'rolling' | 'exiting' }> = 
   // Work 카드를 누른 순간부터 문이 열릴 때까지 5초 가까이 걸리므로, 그 시간을 이용해 챕터 갤러리의
   // 첫 화면 이미지를 미리 받아 둔다(챕터에 들어가자마자 바로 보이게).
   useEffect(() => {
-    prefetchRyzeGalleryHeads();
+    prefetchRyzeWorkChapterImages();
   }, []);
   // 엘리베이터 이동음 — Work 카드를 누른 순간(=이 오버레이가 처음 마운트되는 순간)부터
   // 문이 열리기 시작하는 순간까지 깔아준다. 시작할 때 살짝 페이드인하고, 문이 열리기

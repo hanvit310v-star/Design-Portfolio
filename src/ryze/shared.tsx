@@ -255,10 +255,54 @@ const getRyzeAudio = (i: number): RyzeAudio => {
   return audio;
 };
 
+// 브라우저가 한가할 때(첫 화면 렌더링/모션에 방해되지 않을 때) 콜백을 실행한다 — 미리 받기 작업들이
+// 지금 보고 있는 화면의 요청과 대역폭을 다투지 않게 하는 공용 도구. 페이지 로드가 끝나기 전이면
+// load 이후로 미룬다.
+export const runWhenRyzeIdle = (cb: () => void, timeout = 3000) => {
+  if (typeof window === 'undefined') return;
+  const w = window as Window & { requestIdleCallback?: (fn: () => void, opts?: { timeout: number }) => number };
+  const kick = () => (w.requestIdleCallback ? w.requestIdleCallback(cb, { timeout }) : window.setTimeout(cb, 300));
+  if (document.readyState === 'complete') kick();
+  else window.addEventListener('load', kick, { once: true });
+};
+
+// 이미지 미리 받기 공용 도구 — 받는 중인 이미지 객체를 붙잡아 두고(GC로 요청이 끊기는 걸 방지) 이미
+// 요청한 주소는 다시 요청하지 않는다. decode=true면 디코딩까지 끝내 화면에 놓이는 순간 바로 그려진다.
+const ryzePrefetchedImages = new Map<string, HTMLImageElement>();
+export const isRyzeImagePrefetched = (src: string) => ryzePrefetchedImages.has(src);
+export const prefetchRyzeImage = (src: string, decode: boolean): Promise<void> => {
+  if (ryzePrefetchedImages.has(src)) return Promise.resolve();
+  const img = new Image();
+  img.decoding = 'async';
+  ryzePrefetchedImages.set(src, img);
+  img.src = src;
+  return (decode && img.decode ? img.decode() : new Promise<void>((resolve) => { img.onload = () => resolve(); img.onerror = () => resolve(); })).catch(() => {});
+};
+// 앞쪽 decodeCount장은 디코딩까지 한꺼번에, 나머지는 한가할 때 한 장씩 차례로 받는다(동시에 여러 장을
+// 받아 지금 보는 이미지와 대역폭을 다투지 않도록).
+export const prefetchRyzeImages = (srcs: string[], decodeCount = 0) => {
+  srcs.slice(0, decodeCount).forEach((src) => prefetchRyzeImage(src, true));
+  const queue = srcs.slice(decodeCount);
+  const next = () => {
+    const src = queue.shift();
+    if (src) prefetchRyzeImage(src, false).then(() => runWhenRyzeIdle(next, 2000));
+  };
+  runWhenRyzeIdle(next, 2000);
+};
+
+// BGM을 앱이 뜨자마자 미리 받아 두는 방식(Audio 객체를 먼저 만들어 load())은 쓰지 않는다 — Chrome에서
+// 링크로 바로 진입했을 때 자동재생이 허용되던 것이 이 사전 로드 때문에 차단되는 것을 실측으로 확인했다
+// (사전 로드를 빼면 사용자 조작 없이도 재생됨). RYZE에 들어서는 순간 음악이 들리는 것이 우선이므로,
+// 곡은 getRyzeAudio가 처음 필요할 때 만든다.
+
+
 // 현재 선택된 곡(track)과 "사용자 의도상 재생 중인지"(playing) — 곡 전환/정지에 페이드가
 // 걸려 있어 audio.paused만으론 UI 상태를 정확히 못 정하므로, 이 값이 UI의 단일 출처다.
 // useSyncExternalStore로 구독해 토글 UI(막대 애니메이션)와 곡 목록 하이라이트가 따라간다.
-let ryzeBgmState: { track: number; playing: boolean } = { track: 0, playing: false };
+// playing — 사용자 의도상 재생 중인지(UI 토글의 단일 출처). waiting — 재생을 요청했지만 소리가 아직 실제로
+// 나기 시작하지 않은 상태(파일을 받는 중 등). 막대 애니메이션은 playing && !waiting일 때만 움직여,
+// 소리가 없는데 막대만 움직이는 어긋남을 막는다.
+let ryzeBgmState: { track: number; playing: boolean; waiting: boolean } = { track: 0, playing: false, waiting: false };
 const ryzeBgmListeners = new Set<() => void>();
 const setRyzeBgmState = (next: Partial<typeof ryzeBgmState>) => {
   ryzeBgmState = { ...ryzeBgmState, ...next };
@@ -298,26 +342,65 @@ const stopRyzeAudio = (audio: RyzeAudio) => {
   audio.pause();
   audio.currentTime = 0;
 };
-// 곡 i를 (멈춰 있었다면 음량 0에서) 페이드인으로 재생한다. 브라우저가 자동재생을 막으면
-// play()가 거부되므로 그 경우엔 playing을 다시 false로 되돌려 UI가 거짓 재생 상태가 되지 않게 한다.
+// 브라우저의 자동재생 차단 대응 — 링크로 바로 들어오는 등 사용자 조작 없이 RYZE에 진입하면 play()가 거부된다.
+// 그 경우 화면 어디든 처음 클릭/키 입력/터치하는 순간 음악을 시작한다(그 입력이 사용자 조작으로 인정돼
+// 이제는 재생이 허용된다). 음악 토글 자체를 누른 입력은 토글이 직접 처리하므로 건너뛰고, 사용자가 토글/곡
+// 선택으로 직접 켜고 끈 뒤에는 그 의도를 존중해 더 이상 건드리지 않는다.
+let ryzeUnlockCleanup: (() => void) | undefined;
+const disarmRyzeAutoplayUnlock = () => {
+  ryzeUnlockCleanup?.();
+  ryzeUnlockCleanup = undefined;
+};
+const armRyzeAutoplayUnlock = () => {
+  if (ryzeUnlockCleanup || typeof window === 'undefined') return;
+  const events = ['pointerdown', 'keydown', 'touchstart'] as const;
+  const onGesture = (e: Event) => {
+    if ((e.target as Element | null)?.closest?.('[aria-label$="music"]')) return;
+    disarmRyzeAutoplayUnlock();
+    if (!ryzeInArea || ryzeBgmState.playing || document.hidden) return;
+    setRyzeBgmState({ playing: true });
+    playRyzeTrackWithFade(ryzeBgmState.track);
+  };
+  events.forEach((ev) => window.addEventListener(ev, onGesture, true));
+  ryzeUnlockCleanup = () => events.forEach((ev) => window.removeEventListener(ev, onGesture, true));
+};
+
+// 곡 i를 (멈춰 있었다면 음량 0에서) 페이드인으로 재생한다. 페이드인은 play() 호출 시점이 아니라 소리가
+// 실제로 시작된 시점부터 센다 — 파일이 늦게 오면 호출 직후 시작한 페이드가 소리가 나기도 전에 끝나, 소리가
+// 갑자기 최대 음량으로 튀어나왔다. 브라우저가 자동재생을 막으면 play()가 거부되므로 그 경우엔 playing을
+// 다시 false로 되돌려 UI가 거짓 재생 상태가 되지 않게 하고, 다음 사용자 입력에서 재시도하도록 건다.
+let ryzePlayToken = 0;
 const playRyzeTrackWithFade = (i: number) => {
   const audio = getRyzeAudio(i);
+  const token = ++ryzePlayToken;
   if (audio.paused) audio.volume = 0;
   audio.muted = false;
-  audio.play().catch(() => {
+  setRyzeBgmState({ waiting: true });
+  audio.play().then(() => {
+    if (token !== ryzePlayToken) return;
+    setRyzeBgmState({ waiting: false });
+    // 대기 중에 사용자가 끄거나 곡을 바꿨다면 이 곡을 살리지 않는다.
+    if (ryzeBgmState.playing && ryzeBgmState.track === i) fadeRyzeAudio(audio, RYZE_BGM_TRACKS[i].gain, RYZE_BGM_FADE_MS);
+  }).catch((err: unknown) => {
     if (audio._fadeTimer) { window.clearInterval(audio._fadeTimer); audio._fadeTimer = undefined; }
+    if (token !== ryzePlayToken) return;
+    setRyzeBgmState({ waiting: false });
+    // 대기 중에 pause()로 끊긴 경우(탭이 숨겨짐 등)는 차단이 아니다 — 사용자 의도(playing)는 그대로 둔다.
+    if ((err as { name?: string } | null)?.name === 'AbortError') return;
     if (ryzeBgmState.track === i) setRyzeBgmState({ playing: false });
+    if (ryzeInArea) armRyzeAutoplayUnlock();
   });
-  fadeRyzeAudio(audio, RYZE_BGM_TRACKS[i].gain, RYZE_BGM_FADE_MS);
 };
 
 // 재생/정지 토글 — 둘 다 페이드로 처리해 뚝 끊기지 않게 한다.
 export const toggleRyzeBgm = () => {
+  disarmRyzeAutoplayUnlock(); // 사용자가 직접 켜고 끄면 그 의도가 우선
   cancelRyzeSwitch();
   ryzeDucked = false; // 사용자가 직접 켜고 끄면 그 의도가 우선 — 영상 종료 시 자동 재개하지 않는다.
   const { track, playing } = ryzeBgmState;
   if (playing) {
-    setRyzeBgmState({ playing: false });
+    ryzePlayToken++; // 아직 대기 중이던 재생 요청이 있어도 무효화한다
+    setRyzeBgmState({ playing: false, waiting: false });
     const audio = ryzeAudios[track];
     if (audio) fadeRyzeAudio(audio, 0, RYZE_BGM_FADE_MS, () => audio.pause());
   } else {
@@ -329,6 +412,7 @@ export const toggleRyzeBgm = () => {
 // 곡을 고르면 이전 곡 페이드 없이 새 곡만 페이드인으로 들어온다. 이미 선택된 곡이면 멈춰 있을
 // 때만 다시 재생한다.
 export const selectRyzeBgmTrack = (i: number) => {
+  disarmRyzeAutoplayUnlock();
   if (i === ryzeBgmState.track) {
     if (!ryzeBgmState.playing) toggleRyzeBgm();
     return;
@@ -447,13 +531,24 @@ export function useRyzeBgm(pathname: string) {
       // RYZE 영역 진입 — 모든 곡을 처음 상태로 되돌리고 #1 곡을 처음부터 재생 시작
       ryzeInArea = true;
       ryzeDucked = false;
+      disarmRyzeAutoplayUnlock();
       ryzeAudios.forEach((a) => { if (a) stopRyzeAudio(a); });
-      setRyzeBgmState({ track: sectionTrack, playing: false });
+      setRyzeBgmState({ track: sectionTrack, playing: false, waiting: false });
       const audio = getRyzeAudio(sectionTrack);
       audio.volume = RYZE_BGM_TRACKS[sectionTrack].gain;
       audio.muted = false;
       if (!document.hidden) {
-        audio.play().then(() => setRyzeBgmState({ playing: true })).catch(() => {});
+        // 소리가 실제로 시작된 뒤에야 playing으로 바꾼다(그 전엔 UI 막대가 멈춰 있다). 대기 중에 사용자가
+        // 토글을 눌렀다면(ryzePlayToken이 바뀜) 그쪽 요청을 따르고 이 결과는 버린다. 브라우저가 자동재생을
+        // 막았다면(사용자 조작 없이 링크로 바로 진입) 첫 입력에서 재시도하도록 건다.
+        const token = ++ryzePlayToken;
+        audio.play().then(() => {
+          if (token === ryzePlayToken) setRyzeBgmState({ playing: true });
+        }).catch(() => {
+          if (token === ryzePlayToken && ryzeInArea) armRyzeAutoplayUnlock();
+        });
+      } else {
+        armRyzeAutoplayUnlock();
       }
     } else if (!isRyzePage && wasRyzePage.current) {
       // RYZE 영역 완전 이탈 — 다음 재진입 때 히어로가 다시 재생되도록 리셋
@@ -463,7 +558,9 @@ export function useRyzeBgm(pathname: string) {
       // RYZE 영역 이탈 — 뚝 끊지 않고 ~1초 페이드아웃 후 정지(재생 중이던 곡 전부)
       ryzeInArea = false;
       ryzeDucked = false;
-      setRyzeBgmState({ playing: false });
+      disarmRyzeAutoplayUnlock();
+      ryzePlayToken++;
+      setRyzeBgmState({ playing: false, waiting: false });
       ryzeAudios.forEach((a) => {
         if (a && (!a.paused || a._fadeTimer)) {
           fadeRyzeAudio(a, 0, RYZE_BGM_LEAVE_FADE_MS, () => { a.pause(); a.currentTime = 0; });
@@ -538,7 +635,9 @@ export const RyzeMusicToggle: React.FC<{ onDarkBg?: boolean }> = ({ onDarkBg = f
   const [heights, setHeights] = useState<number[]>(() => Array(BARS).fill(0.1));
   // 재생 상태는 BGM 플레이어의 공용 상태(useRyzeBgmState)를 그대로 구독한다 — 곡 전환/정지에
   // 페이드가 걸려 있어 audio.paused만으론 막대 애니메이션 시점을 정확히 못 정하기 때문.
-  const { playing: isPlaying } = useRyzeBgmState();
+  const { playing, waiting } = useRyzeBgmState();
+  // 재생을 요청했어도 소리가 아직 안 났다면(파일을 받는 중 등) 막대는 멈춰 있는다.
+  const isPlaying = playing && !waiting;
 
   useEffect(() => {
     if (isPlaying) {
@@ -557,7 +656,7 @@ export const RyzeMusicToggle: React.FC<{ onDarkBg?: boolean }> = ({ onDarkBg = f
       transition={{ duration: 1, bounce: 0.6, type: 'spring' }}
       className="cursor-pointer rounded-full transition-colors duration-300"
       style={{ backgroundColor: bgColor }}
-      aria-label={isPlaying ? 'Pause music' : 'Play music'}
+      aria-label={playing ? 'Pause music' : 'Play music'}
       role="button"
     >
       <motion.div

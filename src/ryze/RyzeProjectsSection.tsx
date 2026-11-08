@@ -4,7 +4,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import { useNavigate } from 'react-router-dom';
 import { animate, motion, useMotionValue, useTransform } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
-import { getImageUrl, RYZE_BG, RYZE_FONT, RYZE_INK, RyzeMusicToggleWithLabel, RyzeWorkIntroContext } from './shared';
+import { getImageUrl, RYZE_BG, RYZE_FONT, RYZE_INK, RyzeMusicToggleWithLabel, RyzeWorkIntroContext, prefetchRyzeImages, runWhenRyzeIdle } from './shared';
 import { RyzeLogoSVG } from './RyzeHero';
 
 // ── 도어 리빌 트랜지션 (레퍼런스 123.mp4 프레임 단위 실측 재현) ──
@@ -62,6 +62,10 @@ const RYZE_DESC_FONT_CSS = 'clamp(8px, 0.22vw + 6.3px, 12px)';
 // pravatar는 인물 사진만 제공하는 플레이스홀더 서비스 — 카드별로 고정된 인물이 나오도록
 // 서로 다른 img 번호를 지정한다.
 export const RYZE_CARD_IMAGES = ['RYZE/card1.webp', 'RYZE/card2.webp', 'RYZE/card3.png', 'RYZE/card4.webp'];
+// 카드 사진과 배경 심볼은 카드가 마운트되는(=그리드가 채워지는) 순간에야 요청되면, 첫 방문에서는 카드가
+// 들어오는 동안 사진이 비어 있다가 갑자기 나타난다. 앱이 뜬 뒤 한가할 때 미리 받아 디코딩해 둔다
+// (모두 합쳐 약 0.8MB). 같은 파일을 받는 시점만 앞당기는 것이라 전송량은 같다.
+runWhenRyzeIdle(() => prefetchRyzeImages([...RYZE_CARD_IMAGES, 'RYZE/bg-symbol.webp'].map(getImageUrl), RYZE_CARD_IMAGES.length + 1));
 // 레퍼런스 사진처럼 카드 좌하단에 얹는 더미 텍스트 — 제품명/설명
 export const RYZE_CARD_COPY: { title: string; desc: string }[] = [
   { title: 'Overview', desc: 'Before the work reveals itself in detail, a brief overview — the purpose, the scope, the essentials' },
@@ -138,7 +142,7 @@ const RYZE_GRID_ENTER_EASE: [number, number, number, number] = [0.07, 0.9, 0.17,
 
 // 카드 본체(라벨+이미지+그라디언트+타이틀/설명) 마크업 — 첫 카드(패널)와 나머지 그리드
 // 카드가 동일한 구조를 그대로 복붙해 쓰던 것을 하나로 통합. idx===0(패널)은 뷰포트
-// 진입 즉시 필요하므로 eager, 나머지는 gridPhase 이후에만 마운트되므로 lazy 처리한다.
+// 진입 즉시 필요하다. 사진은 위에서 미리 받아 두므로 모든 카드가 지연 없이 그려진다.
 const RyzeCardBody: React.FC<{ idx: number; textActive: boolean; reduced: boolean }> = ({ idx, textActive, reduced }) => {
   const copy = RYZE_CARD_COPY[idx];
   return (
@@ -161,7 +165,6 @@ const RyzeCardBody: React.FC<{ idx: number; textActive: boolean; reduced: boolea
         <img
           src={getImageUrl(RYZE_CARD_IMAGES[idx])}
           alt=""
-          loading={idx === 0 ? undefined : 'lazy'}
           className="absolute inset-0 w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500 ease-out group-hover:scale-110 will-change-transform"
         />
         {/* 하단 그라디언트 스크림 — 사진 위에서도 텍스트가 읽히도록 */}
@@ -173,7 +176,7 @@ const RyzeCardBody: React.FC<{ idx: number; textActive: boolean; reduced: boolea
             카드가 도착하는 순간 오른쪽에서 왼쪽으로 슬라이드 인 된다. */}
         <div className="absolute left-0 w-full pl-6 md:pl-8 pr-4 md:pr-5 pointer-events-none overflow-hidden" style={{ top: '64%', fontFamily: RYZE_FONT, fontSize: RYZE_TITLE_FONT_CSS }}>
           <RyzeSlideText active={textActive} reduced={reduced} className="font-semibold tracking-wide text-white uppercase leading-tight">
-            {copy.title}
+            {`${idx + 1}. ${copy.title}`}
           </RyzeSlideText>
         </div>
         {/* 더미 텍스트 — 설명(파란 박스 위치로 이동, 좌측을 재킷#번호와 동일하게 정렬) */}
@@ -378,7 +381,6 @@ export const RyzeProjectsSection: React.FC<{
         <img
           src={getImageUrl('RYZE/bg-symbol.webp')}
           alt=""
-          loading="lazy"
           style={{ width: `${RYZE_BG_IMG_WIDTH_VW}vw`, maxWidth: 'none' }}
         />
       </div>

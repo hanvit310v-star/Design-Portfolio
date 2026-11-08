@@ -2,13 +2,13 @@
 // App.tsx가 5,400줄이 넘는 단일 파일이 되어 있던 걸 분리한 것 — 이 파일 하나가 Planning의
 // 7개 화면(문제 정의 5장 + 페르소나&저니맵 2장), 차트 3종, 페르소나 콜라주를 전부 담는다.
 // App.tsx(일반 챕터 공용 셸)와는 src/ryze/shared.tsx를 통해서만 연결된다(순환 참조 방지).
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
-import { RYZE_GALLERY_TOC, RyzeWorkGallery, getRyzeGalleryBg, getRyzeGalleryRightEdge, hasRyzeGallery, isRyzeGalleryLight, scrollToRyzeGalleryItem, useRyzeGalleryActiveToc } from './RyzeWorkGallery';
+import { RYZE_GALLERY_TOC, RyzeWorkGallery, getRyzeGalleryBg, prefetchRyzeGalleryHeads, getRyzeGalleryRightEdge, hasRyzeGallery, isRyzeGalleryLight, scrollToRyzeGalleryItem, useRyzeGalleryActiveToc } from './RyzeWorkGallery';
 import { RYZE_TITLE_FONT_CSS } from './RyzeProjectsSection';
-import { createRyzeWheelGate, getImageUrl, hexToRgba, RYZE_BG, RYZE_FONT, RYZE_INK, RyzeDesignScaleLayer, RyzeMusicToggleWithLabel, useRyzeDesignMetrics } from './shared';
+import { createRyzeWheelGate, getImageUrl, hexToRgba, RYZE_BG, RYZE_FONT, RYZE_INK, RyzeDesignScaleLayer, RyzeMusicToggleWithLabel, useRyzeDesignMetrics, prefetchRyzeImages } from './shared';
 
 const RYZE_WORK_CHAPTERS: { slug: string; title: string }[] = [
   { slug: 'planning', title: 'Planning' },
@@ -587,7 +587,7 @@ const RyzePlanningTextColumn: React.FC<{
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: false, amount: 0.3 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-        className="mt-2 text-[15px] md:text-[16px] leading-[1.6]"
+        className="mt-2 text-[15px] md:text-[17px] leading-[1.6]"
         style={{ color: ink, opacity: 0.75, fontFamily: RYZE_FONT }}
       >
         {subtitle}
@@ -598,7 +598,7 @@ const RyzePlanningTextColumn: React.FC<{
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: false, amount: 0.3 }}
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: subtitle ? 0.4 : 0.3 }}
-      className={`${subtitle ? 'mt-16' : 'mt-12'} flex flex-col gap-4 text-[15px] md:text-[16px] leading-[1.6]`}
+      className={`${subtitle ? 'mt-16' : 'mt-12'} flex flex-col gap-4 text-[15px] md:text-[17px] leading-[1.6]`}
       style={{ color: ink, opacity: 0.75, fontFamily: RYZE_FONT }}
     >
       {paragraphs.map((p, i) => (
@@ -612,7 +612,7 @@ const RyzePlanningTextColumn: React.FC<{
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: false, amount: 0.3 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: subtitle ? 0.5 : 0.4 }}
-        className="mt-16 flex flex-col gap-1 text-[15px] md:text-[16px] leading-[1.6]"
+        className="mt-16 flex flex-col gap-1 text-[15px] md:text-[17px] leading-[1.6]"
         style={{ color: '#9A9A9A', fontFamily: RYZE_FONT }}
       >
         {sources.map((s, i) => (
@@ -628,9 +628,9 @@ const RyzePlanningTextColumn: React.FC<{
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: subtitle ? 0.5 : 0.4 }}
         className="mt-20 flex items-stretch gap-4"
       >
-        <div className="w-1 shrink-0" style={{ backgroundColor: '#0A0A0A', transform: 'skewX(-20deg)' }} />
+        <div className="w-1 shrink-0" style={{ backgroundColor: '#0A0A0A' }} />
         <p
-          className="text-[15px] md:text-[16px] font-medium italic leading-relaxed whitespace-nowrap"
+          className="text-[15px] md:text-[17px] font-medium italic leading-relaxed whitespace-pre"
           style={{ color: ink, fontFamily: RYZE_FONT }}
         >
           {quote}
@@ -650,6 +650,55 @@ const RyzePlanningScreen: React.FC<{ designCanvasH: number; children: React.Reac
   </div>
 );
 
+// 사진이 실제로 다 받아졌는지 — 페이드인을 "마운트 시각"이 아니라 "이미지 도착 시각"에 맞추려는 용도.
+// 첫 방문에서는 사진(최대 1.5MB)이 0.8초 페이드가 끝난 뒤에야 도착해 부드럽게 나타나지 않고 툭 튀어나왔다.
+// 이미 캐시돼 있으면 ref 콜백 시점에 complete가 true라 지금과 똑같이 바로 페이드된다.
+const useRyzeImgLoaded = () => {
+  const [loaded, setLoaded] = useState(false);
+  const ref = useCallback((el: HTMLImageElement | null) => {
+    if (el?.complete && el.naturalWidth > 0) setLoaded(true);
+  }, []);
+  const onLoad = useCallback(() => setLoaded(true), []);
+  return { loaded, ref, onLoad };
+};
+
+// Planning 사진들 — 화면 순서대로(앞 화면 사진이 먼저 오도록). 챕터 목록(엘리베이터)이나 Work 인트로가
+// 시작될 때 미리 받아 두면 챕터를 열었을 때 사진이 바로 보인다. 앞 두 장(첫 화면)은 디코딩까지, 나머지는
+// 한가할 때 한 장씩 받는다.
+const RYZE_PLANNING_IMAGES = [
+  'RYZE/planning-hero.webp',
+  'RYZE/hf_20260908_100649_3cf2df40-7505-4102-a14d-862a97a17df5.webp',
+  'RYZE/KakaoTalk_20260908_204629907.webp',
+  'RYZE/KakaoTalk_20260908_231704246.webp',
+  'RYZE/KakaoTalk_20260909_011001610.webp',
+  'RYZE/123123.webp',
+  'RYZE/로고(심볼)_누끼제거_블랙.webp',
+];
+// Work 챕터(Planning/Brand & Visuals/Content Design)에 들어가기 전에 부르는 미리 받기 — 챕터 목록 화면과
+// Work 인트로가 같은 것을 부른다.
+export const prefetchRyzeWorkChapterImages = () => {
+  prefetchRyzeGalleryHeads();
+  prefetchRyzeImages(RYZE_PLANNING_IMAGES.map(getImageUrl), 2);
+};
+
+// Planning 첫 화면의 큰 사진 — 마운트 즉시가 아니라 이미지가 도착한 뒤에 페이드인한다.
+const RyzePlanningHeroImage: React.FC = () => {
+  const { loaded, ref, onLoad } = useRyzeImgLoaded();
+  return (
+    <motion.img
+      ref={ref}
+      onLoad={onLoad}
+      src={getImageUrl('RYZE/planning-hero.webp')}
+      alt=""
+      initial={{ opacity: 0 }}
+      animate={{ opacity: loaded ? 1 : 0 }}
+      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+      className="absolute object-cover pointer-events-none select-none"
+      style={{ left: 918, top: -2, width: 'calc(100% - 920px - 420px + 4px)', height: 'calc(100% + 4px)' }}
+    />
+  );
+};
+
 // "사진 한 장 + 텍스트 컬럼"만으로 구성되는 화면(파워드레싱 설명/상징적 소비)의 사진 —
 // left/top/width 공식은 전부 동일하고, 화면마다 반올림 오차 보정용 세로 오버사이즈(heightPad)만
 // 다르다.
@@ -657,19 +706,24 @@ const RyzePlanningPhotoVisual: React.FC<{ src: string; heightPad?: number; loadi
   src,
   heightPad = 4,
   loading,
-}) => (
-  <motion.img
-    src={getImageUrl(src)}
-    alt=""
-    loading={loading}
-    initial={{ opacity: 0 }}
-    whileInView={{ opacity: 1 }}
-    viewport={{ once: false, amount: 0.3 }}
-    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-    className="absolute object-cover pointer-events-none select-none"
-    style={{ left: 918, top: -2, width: 'calc(100% - 920px - 420px + 4px)', height: `calc(100% + ${heightPad}px)` }}
-  />
-);
+}) => {
+  const { loaded, ref, onLoad } = useRyzeImgLoaded();
+  return (
+    <motion.img
+      ref={ref}
+      onLoad={onLoad}
+      src={getImageUrl(src)}
+      alt=""
+      loading={loading}
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: loaded ? 1 : 0 }}
+      viewport={{ once: false, amount: 0.3 }}
+      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+      className="absolute object-cover pointer-events-none select-none"
+      style={{ left: 918, top: -2, width: 'calc(100% - 920px - 420px + 4px)', height: `calc(100% + ${heightPad}px)` }}
+    />
+  );
+};
 
 // 이 화면(RyzeWorkChapterDetail)은 스크롤 위치(activeSection)·Dawn 캐러셀 인덱스 등 자주
 // 바뀌는 state를 여러 개 들고 있는데, 그때마다 이미 다 그려진 차트 4개까지 매번 다시
@@ -1471,15 +1525,7 @@ const RyzeWorkChapterDetail: React.FC = () => {
           top/bottom을 동시에 줘도 자동으로 그 박스에 맞춰 늘어나지 않는 CSS 특성이 있어,
           right 대신 명시적 calc() 폭으로 박스 크기를 직접 계산해준다. */}
       {isPlanning && (
-        <motion.img
-          src={getImageUrl('RYZE/planning-hero.webp')}
-          alt=""
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="absolute object-cover pointer-events-none select-none"
-          style={{ left: 918, top: -2, width: 'calc(100% - 920px - 420px + 4px)', height: 'calc(100% + 4px)' }}
-        />
+        <RyzePlanningHeroImage />
       )}
       {/* Planning 전용 — 좌상단 "PLANNING" 라벨과 같은 좌측 정렬선에 맞춰 본문을 배치한다.
           "문제 정의" 타이틀 자체는 우측 목차(TOC)에 이미 표시되므로 여기서는 생략한다. */}
@@ -1599,7 +1645,7 @@ const RyzeWorkChapterDetail: React.FC = () => {
               "데이터를 보면 흥미로운 지점이 발견됩니다. 여성 고용률은 62.1%로 역대 최고를 기록했지만, 여성 임원 비율은 여전히 6.5%에 머뭅니다. 직장 내 여성의 지위와 기회를 종합적으로 평가하는 국제 비교 지수인 '유리천장지수'에서도, 한국은 2025년 처음으로 12년 연속 꼴찌를 벗어났지만 여전히 OECD 29개국 중 28위에 그칩니다.",
               "즉, 여성의 노동시장 참여는 크게 늘었으나, 조직 내 주도적 역할을 하는 위치는 여전히 좁은 문이었습니다. 이 격차는 여성의 역량이나 성과가 낮아서가 아닙니다. 국내 리더십 연구들은 이를 여성 리더십에 대한 뿌리 깊은 사회적 고정관념의 결과로 설명합니다. 리더는 이래야 한다는 기준 자체가 '여성적인 것'과는 거리가 멀게 설정되어 있어, 실력과 무관하게 승진과 인정에서 밀려나게 만든다는 연구입니다. 실제로 승진 사다리를 오를수록 그 격차는 더 벌어집니다. 차장급에서 여성 비율은 이미 남성에 못 미치고, 임원급 증가율은 남성이 150%인 동안 여성은 20%에 그쳤습니다. 그 결과, 능력만큼의 자리를 갖추지 못한 이들이 늘어났습니다.",
             ]}
-            quote="이 분석은 특정 성별의 우열이 아니라, 실제 데이터로서 측정된 시장 세그먼트에 대한 관찰입니다."
+            quote={"해당 분석은 특정 성별의 우열이 아닌, 실제 데이터로 측정된\n시장 세그먼트에 대한 관찰입니다."}
           />
         </RyzePlanningScreen>
       )}

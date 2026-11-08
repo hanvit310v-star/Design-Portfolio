@@ -6,6 +6,15 @@
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://api.fontshare.com; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdn.fontshare.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' ws: wss: https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self';" />
     <title>My Google AI Studio App</title>
+    <!-- 웹폰트 — index.css의 @import는 CSS가 도착한 뒤에야 발견돼 순서대로 받아지는데, 첫 방문에서는 그 사이
+         글자가 대체 폰트로 그려졌다가 바뀐다. 서버 연결(preconnect)과 폰트 CSS 요청(preload)을 HTML 단계에서
+         먼저 걸어 둔다(URL은 index.css의 @import와 정확히 같아야 그 요청을 재사용한다). -->
+    <link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+    <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="preload" as="style" href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700&display=swap" />
     <link rel="preload" href="https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v2.1.5/dist/unicornStudio.umd.js" as="script" />
   </head>
   <body class="bg-[#0A0A0A] text-white" style="background-color: #0A0A0A; color: #ffffff; margin: 0; min-height: 100vh;">
