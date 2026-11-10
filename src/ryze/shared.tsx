@@ -221,9 +221,11 @@ export const RyzeWorkIntroContext = React.createContext<(go: () => void) => void
 // 낮췄는데, 실제로 들어보니 조금 작게 들려 0.035배(≈ +5dB)로 올렸다. 모든 페이드인/아웃의
 // "최대 음량"이 이 gain이다.
 export const RYZE_BGM_TRACKS = [
-  { label: '#1) RYZE SHOWROOM', src: 'RYZE/RYZE BGM.mp3', gain: 1 },
-  { label: '#2) RYZE RUNWAY', src: 'RYZE/RYZE Runway.mp3', gain: 0.058 },
+  { label: '#1) RYZE SHOWROOM', src: 'RYZE/RYZE BGM.mp3', gain: 1, resumable: true },
+  { label: '#2) RYZE RUNWAY', src: 'RYZE/RYZE Runway.mp3', gain: 0.058, resumable: false },
 ] as const;
+// resumable — 챕터 화면에 따라 자동으로 곡이 바뀔 때(Brand & Visuals에 들어갔다 나올 때) 이 곡은 처음으로
+// 되감지 않고 멈췄던 지점부터 이어서 재생한다. 사용자가 곡 목록에서 직접 고르는 경우엔 해당 없이 처음부터.
 // 곡을 바꾸거나 재생/정지 토글할 때의 페이드 시간 — 뚝 끊기지 않고 음량이 부드럽게
 // 빠지고(out) 들어오게(in) 한다. RYZE 영역을 완전히 벗어날 때는 기존대로 1초.
 const RYZE_BGM_FADE_MS = 900;
@@ -411,7 +413,7 @@ export const toggleRyzeBgm = () => {
 // 곡 선택 — 재생 중이던 곡은 페이드아웃, 새 곡은 처음부터 페이드인(크로스페이드). 정지 상태에서
 // 곡을 고르면 이전 곡 페이드 없이 새 곡만 페이드인으로 들어온다. 이미 선택된 곡이면 멈춰 있을
 // 때만 다시 재생한다.
-export const selectRyzeBgmTrack = (i: number) => {
+export const selectRyzeBgmTrack = (i: number, opts?: { resume?: boolean }) => {
   disarmRyzeAutoplayUnlock();
   if (i === ryzeBgmState.track) {
     if (!ryzeBgmState.playing) toggleRyzeBgm();
@@ -419,10 +421,14 @@ export const selectRyzeBgmTrack = (i: number) => {
   }
   cancelRyzeSwitch();
   ryzeDucked = false;
-  const prev = ryzeAudios[ryzeBgmState.track];
+  // resume(챕터 화면 전환에 따른 자동 곡 교체)일 때 이어 듣기 대상 곡(resumable)은 위치를 보존한다 —
+  // 나가는 곡은 멈춘 자리를 그대로 두고, 들어오는 곡은 되감지 않고 그 자리에서 재생한다.
+  const keepPos = (idx: number) => !!opts?.resume && RYZE_BGM_TRACKS[idx].resumable;
+  const prevIdx = ryzeBgmState.track;
+  const prev = ryzeAudios[prevIdx];
   const prevAudible = !!prev && (!prev.paused || !!prev._fadeTimer);
   if (prev && prevAudible) {
-    fadeRyzeAudio(prev, 0, RYZE_BGM_FADE_MS, () => { prev.pause(); prev.currentTime = 0; });
+    fadeRyzeAudio(prev, 0, RYZE_BGM_FADE_MS, () => { prev.pause(); if (!keepPos(prevIdx)) prev.currentTime = 0; });
   }
   setRyzeBgmState({ track: i, playing: true });
   // 이전 곡이 소리 나고 있었다면 그 페이드아웃 + 짧은 간격이 끝난 뒤에 새 곡을 시작한다.
@@ -431,7 +437,7 @@ export const selectRyzeBgmTrack = (i: number) => {
       ryzeSwitchTimer = undefined;
       if (ryzeBgmState.track !== i || !ryzeBgmState.playing) return;
       const n = getRyzeAudio(i);
-      if (n.paused) n.currentTime = 0;
+      if (n.paused && !keepPos(i)) n.currentTime = 0;
       playRyzeTrackWithFade(i);
     }, RYZE_BGM_FADE_MS + RYZE_BGM_SWITCH_GAP_MS);
     return;
@@ -439,7 +445,7 @@ export const selectRyzeBgmTrack = (i: number) => {
   // 아직 페이드아웃 중이라 소리가 나고 있는 곡을 곧바로 다시 고른 경우엔 처음으로 되감지
   // 않고(뚝 튀는 소리 방지) 그 자리에서 음량만 다시 올린다.
   const next = getRyzeAudio(i);
-  if (next.paused) next.currentTime = 0;
+  if (next.paused && !keepPos(i)) next.currentTime = 0;
   playRyzeTrackWithFade(i);
 };
 
@@ -575,7 +581,7 @@ export function useRyzeBgm(pathname: string) {
   // 영역 진입 시점의 곡은 위 effect가 이미 sectionTrack으로 맞추므로 그땐 아무것도 안 한다.
   useEffect(() => {
     if (!isRyzePage || ryzeBgmState.track === sectionTrack) return;
-    if (ryzeBgmState.playing) selectRyzeBgmTrack(sectionTrack);
+    if (ryzeBgmState.playing) selectRyzeBgmTrack(sectionTrack, { resume: true });
     else setRyzeBgmState({ track: sectionTrack });
   }, [isRyzePage, sectionTrack]);
 

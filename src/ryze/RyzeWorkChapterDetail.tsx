@@ -2017,7 +2017,7 @@ const RyzeWorkChapterDetail: React.FC = () => {
                             border: `${ppx(2)}px solid #0A0A0A`,
                           }}
                           initial={{ scale: 1, opacity: 0 }}
-                          animate={{ scale: [1, 1.8], opacity: [0, 0.85, 0] }}
+                          animate={{ scale: [1, 1.8], opacity: [0, 1.2, 0] }}
                           transition={{ duration: 1, times: [0, 0.15, 1], ease: 'easeOut', repeat: Infinity }}
                         />
                       )}
